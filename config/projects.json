@@ -14,12 +14,12 @@
           "name": "FMA-FE-Service",
           "kind": "frontend",
           "trunk": [
-            "develop",
-            "dev-draft"
+            "dev-draft",
+            "dev"
           ],
           "branches": {
-            "develop": "dev",
             "dev-draft": "dev",
+            "dev": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -28,12 +28,12 @@
           "name": "FMA-Add-in",
           "kind": "frontend",
           "trunk": [
-            "develop",
-            "dev-draft"
+            "dev-draft",
+            "dev"
           ],
           "branches": {
-            "develop": "dev",
             "dev-draft": "dev",
+            "dev": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -42,11 +42,11 @@
           "name": "FMA-Node-Service",
           "kind": "service",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
@@ -56,11 +56,11 @@
           "name": "FMA-Py-Service",
           "kind": "service",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
@@ -70,11 +70,11 @@
           "name": "FMA-Auth-Service",
           "kind": "service",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
@@ -84,12 +84,12 @@
           "name": "FMA-Dashboard-Prototype",
           "kind": "frontend",
           "trunk": [
-            "develop",
-            "dev-draft"
+            "dev-draft",
+            "dev"
           ],
           "branches": {
-            "develop": "dev",
             "dev-draft": "dev",
+            "dev": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -98,11 +98,11 @@
           "name": "FMA-Terraform",
           "kind": "tooling",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
@@ -112,11 +112,11 @@
           "name": "FMA-QA-Automation",
           "kind": "tooling",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
@@ -138,12 +138,12 @@
           "name": "REPLACE-repo-1",
           "kind": "frontend",
           "trunk": [
-            "develop",
-            "dev-draft"
+            "dev-draft",
+            "dev"
           ],
           "branches": {
-            "develop": "dev",
             "dev-draft": "dev",
+            "dev": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -152,11 +152,11 @@
           "name": "REPLACE-repo-2",
           "kind": "service",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
@@ -166,11 +166,11 @@
           "name": "REPLACE-repo-3",
           "kind": "tooling",
           "trunk": [
-            "develop",
+            "dev",
             "dev-draft"
           ],
           "branches": {
-            "develop": "dev",
+            "dev": "dev",
             "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"

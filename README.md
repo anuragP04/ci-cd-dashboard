@@ -25,9 +25,9 @@ config carries git history and review.
 {
   "name": "FMA-Node-Service",
   "kind": "service",
-  "trunk": ["develop", "dev-draft"],
+  "trunk": ["dev", "dev-draft"],
   "branches": {
-    "develop": "dev",
+    "dev": "dev",
     "dev-draft": "dev",
     "staging": "staging",
     "main": "prod"
@@ -38,12 +38,12 @@ config carries git history and review.
 - `kind` — `service` | `frontend` | `library` | `tooling`. Libraries and tooling
   with nothing to deploy take `"branches": {}`.
 - `trunk` — the branch drift is measured **from**: where merges land first. In a
-  `develop → staging → main` flow that is `develop`, **not** `main`. Getting this
+  `dev → staging → main` flow that is `dev`, **not** `main`. Getting this
   backwards makes every cell report `↑0`, which looks healthy and is wrong.
   A list means "first of these that exists", for repos that disagree on naming.
 - `branches` — branch pattern to environment. Several patterns may map to the
   same environment; they are tried in order and the first that exists wins, which
-  is how `develop` and `dev-draft` coexist. Patterns may contain `*`; matches are
+  is how `dev` (most repos) and `dev-draft` (frontends) coexist. Patterns may contain `*`; matches are
   compared numerically, so `release/1.10.0` beats `release/1.9.0`.
 - `environments` — listed in **flow order** (`dev`, `staging`, `prod`). The branch
   promotion view derives its hops from this order.
