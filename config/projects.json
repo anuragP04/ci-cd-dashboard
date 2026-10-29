@@ -73,27 +73,7 @@
           }
         },
         {
-          "name": "FMA-Dashboard-Prototype",
-          "kind": "frontend",
-          "trunk": [
-            "main"
-          ],
-          "branches": {
-            "main": "prod"
-          }
-        },
-        {
           "name": "FMA-Terraform",
-          "kind": "tooling",
-          "trunk": [
-            "main"
-          ],
-          "branches": {
-            "main": "prod"
-          }
-        },
-        {
-          "name": "FMA-QA-Automation",
           "kind": "tooling",
           "trunk": [
             "main"
@@ -105,8 +85,8 @@
       ]
     },
     {
-      "key": "beta",
-      "name": "Project 2 (awaiting repo names)",
+      "key": "elbe",
+      "name": "Elbe",
       "org": "elbe-ai",
       "environments": [
         "dev",
@@ -115,43 +95,47 @@
       ],
       "repos": [
         {
-          "name": "REPLACE-repo-1",
+          "name": "web-elbe-ai",
           "kind": "frontend",
           "trunk": [
-            "dev-draft",
+            "staging"
+          ],
+          "branches": {
+            "staging": "staging",
+            "main": "prod"
+          }
+        },
+        {
+          "name": "elbe-backend-service",
+          "kind": "service",
+          "trunk": [
             "dev"
           ],
           "branches": {
-            "dev-draft": "dev",
             "dev": "dev",
             "staging": "staging",
             "main": "prod"
           }
         },
         {
-          "name": "REPLACE-repo-2",
+          "name": "elbe-diligo-service",
           "kind": "service",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "dev"
           ],
           "branches": {
             "dev": "dev",
-            "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
           }
         },
         {
-          "name": "REPLACE-repo-3",
+          "name": "elbe-qa-automation",
           "kind": "tooling",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "staging"
           ],
           "branches": {
-            "dev": "dev",
-            "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
           }
