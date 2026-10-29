@@ -109,6 +109,8 @@ export interface PrCheck {
   workflow: string | null
   url: string | null
   durationSeconds: number | null
+  startedAt: string | null
+  completedAt: string | null
 }
 
 export interface PullRequest {

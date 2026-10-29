@@ -354,7 +354,7 @@ const CHECK_FRAGMENT = `
                     checkSuite { workflowRun { workflow { name } } }
                   }
                   ... on StatusContext {
-                    context state targetUrl
+                    context state targetUrl createdAt
                   }
                 }
               }`
@@ -465,6 +465,8 @@ function toCheck(node: any): PrCheck | null {
       url: node.detailsUrl ?? null,
       durationSeconds:
         started && ended ? Math.max(0, Math.round((ended - started) / 1000)) : null,
+      startedAt: node.startedAt ?? null,
+      completedAt: node.completedAt ?? null,
     }
   }
 
@@ -481,6 +483,8 @@ function toCheck(node: any): PrCheck | null {
       workflow: null,
       url: node.targetUrl ?? null,
       durationSeconds: null,
+      startedAt: node.createdAt ?? null,
+      completedAt: null,
     }
   }
 
@@ -533,7 +537,7 @@ export function getCachedProjectData(project: ProjectConfig): Promise<ProjectDat
  * written by an older build is handed to newer code that expects fields it
  * does not have, and the page crashes on a missing property.
  */
-const SHAPE = 'v3'
+const SHAPE = 'v4'
 
 export function projectTag(key: string): string {
   return `project:${key}`

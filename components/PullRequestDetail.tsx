@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CheckState, PrCheck, PullRequest } from '@/lib/types'
 
 const PAGE = 20
@@ -42,13 +42,44 @@ function tip(c: PrCheck): string {
   return `"${c.name}"${where} ${verb[c.state]}${took}`
 }
 
-function Row({ p, closed }: { p: PullRequest; closed: boolean }) {
+function clock(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const STATE_LABEL: Record<CheckState, string> = {
+  success: 'Passed',
+  failure: 'Failed',
+  pending: 'Running',
+  skipped: 'Skipped',
+  cancelled: 'Cancelled',
+  neutral: 'Neutral',
+}
+
+function Row({
+  p,
+  closed,
+  isOpen,
+  onToggle,
+}: {
+  p: PullRequest
+  closed: boolean
+  isOpen: boolean
+  onToggle: () => void
+}) {
   const failed = p.checks.filter((c) => c.state === 'failure').length
   const running = p.checks.filter((c) => c.state === 'pending').length
   const passed = p.checks.filter((c) => c.state === 'success').length
 
+  const total = p.checks.reduce((n, c) => n + (c.durationSeconds ?? 0), 0)
+
   return (
-    <div className="pr">
+    <div className={`pr${isOpen ? ' pr-open' : ''}`} id={`pr-${p.number}`}>
       <div className="pr-top">
         <span className="num">#{p.number}</span>
         <a href={p.url} target="_blank" rel="noreferrer" className="pr-title">
@@ -60,6 +91,19 @@ function Row({ p, closed }: { p: PullRequest; closed: boolean }) {
           {closed ? ago(p.endedAt) : `${p.ageDays}d`}
         </span>
         <span className={`pill p-${p.status.replace(/\s/g, '')}`}>{p.status}</span>
+        <button
+          className={`detail-btn${isOpen ? ' on' : ''}`}
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          data-tip={
+            p.checks.length === 0
+              ? 'No checks to show'
+              : `${isOpen ? 'Hide' : 'Show'} all ${p.checks.length} checks with timings`
+          }
+          disabled={p.checks.length === 0}
+        >
+          Details
+        </button>
       </div>
 
       {p.checks.length === 0 ? (
@@ -96,7 +140,81 @@ function Row({ p, closed }: { p: PullRequest; closed: boolean }) {
           </span>
         </div>
       )}
+
+      {isOpen && p.checks.length > 0 && (
+        <div className="chk-detail">
+          <div className="chk-detail-head">
+            <span>
+              {p.checks.length} checks · {dur(total)} total compute
+            </span>
+            <a href={p.url} target="_blank" rel="noreferrer" className="subtab">
+              Open PR ↗
+            </a>
+            <CopyLink number={p.number} />
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Workflow</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Finished</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.checks.map((c) => (
+                <tr key={c.name + c.url}>
+                  <td>
+                    {c.url ? (
+                      <a href={c.url} target="_blank" rel="noreferrer">
+                        {c.name}
+                      </a>
+                    ) : (
+                      c.name
+                    )}
+                  </td>
+                  <td className="sha">{c.workflow ?? '—'}</td>
+                  <td>
+                    <span className={`chk c-${c.state} chk-flat`}>
+                      <b>{MARK[c.state]}</b> {STATE_LABEL[c.state]}
+                    </span>
+                  </td>
+                  <td className="num">{clock(c.startedAt)}</td>
+                  <td className="num">{clock(c.completedAt)}</td>
+                  <td className="num">{c.durationSeconds === null ? '—' : dur(c.durationSeconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** Copies a deep link to this PR's expanded checks. */
+function CopyLink({ number }: { number: number }) {
+  const [done, setDone] = useState(false)
+
+  return (
+    <button
+      className="subtab"
+      onClick={() => {
+        const url = `${window.location.origin}${window.location.pathname}#pr-${number}`
+        navigator.clipboard?.writeText(url).then(
+          () => {
+            setDone(true)
+            setTimeout(() => setDone(false), 1600)
+          },
+          () => setDone(false),
+        )
+      }}
+      data-tip="Copy a link that opens this PR's checks already expanded"
+    >
+      {done ? 'Copied ✓' : 'Copy link'}
+    </button>
   )
 }
 
@@ -108,11 +226,33 @@ export default function PullRequestDetail({
   closed?: PullRequest[]
 }) {
   const [tab, setTab] = useState<'open' | 'closed'>('open')
+  // One expanded PR at a time, across both tabs.
+  const [expanded, setExpanded] = useState<number | null>(null)
   // One counter per tab so switching back does not collapse what you expanded.
   const [shown, setShown] = useState<{ open: number; closed: number }>({
     open: PAGE,
     closed: PAGE,
   })
+
+  // A #pr-123 hash opens that PR's checks on load, which is what makes the
+  // Copy link button useful: the recipient lands on the expanded view.
+  useEffect(() => {
+    const fromHash = () => {
+      const m = window.location.hash.match(/^#pr-(\d+)$/)
+      if (!m) return
+      const n = Number(m[1])
+      setExpanded(n)
+      if (closed.some((p) => p.number === n) && !open.some((p) => p.number === n)) {
+        setTab('closed')
+      }
+      requestAnimationFrame(() =>
+        document.getElementById(`pr-${n}`)?.scrollIntoView({ block: 'center' }),
+      )
+    }
+    fromHash()
+    window.addEventListener('hashchange', fromHash)
+    return () => window.removeEventListener('hashchange', fromHash)
+  }, [open, closed])
 
   const list = tab === 'open' ? open : closed
   const visible = shown[tab]
@@ -147,7 +287,24 @@ export default function PullRequestDetail({
       ) : (
         <>
           {list.slice(0, visible).map((p) => (
-            <Row key={p.url} p={p} closed={tab === 'closed'} />
+            <Row
+              key={p.url}
+              p={p}
+              closed={tab === 'closed'}
+              isOpen={expanded === p.number}
+              onToggle={() => {
+                const next = expanded === p.number ? null : p.number
+                setExpanded(next)
+                // Keep the URL in step so the view stays shareable.
+                history.replaceState(
+                  null,
+                  '',
+                  next === null
+                    ? window.location.pathname
+                    : `${window.location.pathname}#pr-${next}`,
+                )
+              }}
+            />
           ))}
 
           {remaining > 0 && (

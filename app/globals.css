@@ -348,3 +348,41 @@ details.acc > summary:hover .chev { border-left-color: var(--text); }
 .p-MERGED { background: rgba(188,140,255,0.14); color: var(--purple); }
 .p-CLOSED { background: rgba(248,81,73,0.12); color: var(--red); }
 .chk-summary .ok-t { color: var(--green); font-weight: 400; }
+
+/* ---- PR details expansion ---- */
+.pr-open { background: rgba(88,166,255,0.04); }
+
+.detail-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  font: inherit; font-size: 11px; padding: 2px 9px; border-radius: 5px;
+  cursor: pointer;
+}
+.detail-btn:hover:not(:disabled) { background: var(--border); color: var(--text); }
+.detail-btn.on { background: var(--blue); border-color: var(--blue); color: #04121f; }
+.detail-btn:disabled { opacity: 0.35; cursor: default; }
+
+.chk-detail {
+  margin-top: 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.chk-detail-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  background: var(--panel-2); font-size: 12px; color: var(--muted);
+}
+.chk-detail-head > span:first-child { margin-right: auto; }
+.chk-detail-head .subtab { border: 1px solid var(--border); font-size: 11px; padding: 3px 9px; }
+
+.chk-detail th { font-size: 9px; padding: 7px 12px; }
+.chk-detail td { padding: 7px 12px; font-size: 12px; }
+.chk-detail .num { font-size: 11px; white-space: nowrap; }
+
+.chk-flat { border: none; background: transparent; padding: 0; }
+
+@media (max-width: 760px) {
+  .chk-detail { overflow-x: auto; }
+  .chk-detail table { min-width: 560px; }
+}
