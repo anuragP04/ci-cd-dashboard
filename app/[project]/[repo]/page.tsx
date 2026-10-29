@@ -3,6 +3,8 @@ import { getProject } from '@/lib/config'
 import { getCachedRepoDetail } from '@/lib/data'
 import PullRequestDetail from '@/components/PullRequestDetail'
 import RefreshButton from '@/components/RefreshButton'
+import BranchGraph from '@/components/BranchGraph'
+import OpenGraphLink from '@/components/OpenGraphLink'
 
 function ago(iso: string): string {
   if (!iso) return ''
@@ -27,6 +29,7 @@ export default async function RepoPage({
 
   return (
     <main className="wrap">
+      <OpenGraphLink />
       <header className="head">
         <h1>
           <a href={`/${key}`} className="back">
@@ -37,6 +40,9 @@ export default async function RepoPage({
           {d.repo.name}
           <span className="kind">{d.repo.kind}</span>
         </span>
+        <a className="tab" href="#branch-graph" data-open-graph>
+          Graph
+        </a>
         <a className="tab" href={d.url} target="_blank" rel="noreferrer">
           GitHub ↗
         </a>
@@ -173,6 +179,24 @@ export default async function RepoPage({
           )}
         </details>
       ))}
+
+      <BranchGraph
+        projectKey={key}
+        repoName={d.repo.name}
+        branches={[
+          ...new Set(
+            [d.trunk, ...d.cells.map((c) => c.branch)].filter(
+              (b): b is string => typeof b === 'string',
+            ),
+          ),
+        ]}
+        repoUrl={d.url}
+        envByBranch={Object.fromEntries(
+          d.cells
+            .filter((c) => c.branch)
+            .map((c) => [c.branch as string, c.env]),
+        )}
+      />
 
       {/* ---- recent runs ---- */}
       <section className="panel">

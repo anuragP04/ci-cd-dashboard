@@ -46,6 +46,8 @@ Answered 2026-10-29. These are settled, not assumptions.
 | D6 | No database | GitHub is the system of record; the app is a cached view. See §7 |
 | D7 | Config is a JSON file in this repo | Changing it is a commit plus redeploy. No admin UI |
 | D8 | No webhooks | Freshness comes from a 60s cache plus a manual Refresh button. One moving part instead of two |
+| D9 | A shared password, checked in middleware | Not access control — the password ships in the bundle. It keeps the board off a passer-by's screen and stops signed-out requests costing GitHub calls |
+| D10 | Branch graph scoped to configured branches | One repo has 1092 branches. Graphing all of them would be unreadable and slow; the pipeline is what matters |
 
 Because of D3 and D4, "deployed to staging" means *the head commit of the branch
 mapped to staging*. This is an inference, not an observation — see §5's note on the
@@ -512,6 +514,16 @@ Exit: the matrix is trusted without cross-checking the AWS console.
 
 All five opening questions were answered on 2026-10-29 and are recorded in §2.
 
+Still open, and both are yours to call:
+
+- **`web-elbe-ai` trunk is `testing`.** The data says `staging` is 14 commits
+  *ahead* of it, so the dev column measures as a permanent zero and tells you
+  nothing. If `staging` is where work actually lands, trunk should be `staging`
+  and the dev column should read `—`.
+- **Conditional requests (ETags).** GitHub does not count `304 Not Modified`
+  against the rate limit, so polling unchanged data is free. That would make a
+  10s refresh viable where 60s is the current ceiling.
+
 Remaining judgement calls, none blocking:
 
 1. **Glob ordering.** `release/*` resolves to the lexicographically greatest match.
@@ -522,3 +534,7 @@ Remaining judgement calls, none blocking:
    once that has actually bitten.
 3. **Storage for metrics (phase 4).** DORA numbers need history the API does not
    retain cheaply. That is the one feature that would reverse D6.
+4. **Back-merges.** The graph showed 25 of 70 commits on FMA-Node-Service are not
+   in `develop`, because `staging → main` merges are never merged back down.
+   Harmless for merge commits, but it means trunk is not a superset of prod, and
+   a hotfix landed directly on `main` would be invisible to every other view.

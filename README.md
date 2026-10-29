@@ -15,6 +15,18 @@ npm run dev
 The token needs read access to every tracked repo: `repo`, `read:org`, and Actions
 read. A classic PAT is fine for internal use.
 
+The dashboard is behind a password (`Test@12345`, set in `lib/auth.ts`). Signing
+in stores an expiry in localStorage and a matching cookie for 24 hours. The check
+lives in `middleware.ts`, so a signed-out request never reaches the page and costs
+no GitHub calls.
+
+Be clear-eyed about what that is: the password ships in the client bundle and the
+cookie is a timestamp anyone can write. It keeps the board off a passer-by's
+screen. The GitHub token, which never leaves the server, is the real secret.
+
+To keep it running, `./run-dashboard.sh` supervises `next dev` and restarts it if
+it exits.
+
 ## Configuration
 
 Everything lives in [`config/projects.json`](config/projects.json). Adding a repo
@@ -60,8 +72,14 @@ Two different refreshes, deliberately:
 - **A 20s interval** only re-renders. Elapsed timers keep moving and no API quota
   is spent. Data is at most 60s old on its own.
 
-There is no webhook endpoint. For nine repos the 60s cache plus a button covers it,
+There is no webhook endpoint. For ten repos the 60s cache plus a button covers it,
 and it keeps the app to a single moving part.
+
+Measured cost: a project board is ~37 REST plus 3 GraphQL calls for FMA, ~22 plus
+2 for Elbe. A repo detail page is ~6 REST. The branch graph adds ~5 and the PR
+check resolution ~2 plus one per distinct run, both only when expanded. Against a
+5,000/hour limit, one board left open all day is roughly 2,200 calls; both is
+about 3,500. A signed-out or unopened tab costs nothing.
 
 ## What the views mean
 
@@ -82,16 +100,53 @@ commit — usually the more alarming of the two.
 A `?` badge means the comparison itself failed (rate limit, or a force-pushed
 branch). It is deliberately not rendered as `↑0`, which would read as in sync.
 
-**Repo detail** — click any repo name in the matrix. Shows the pipeline as a
-strip, then one panel per hop listing the actual commits stuck at it with author,
-PR number and age, followed by that repo's open PRs and recent runs. This is where
-`↑22` turns into twenty-two named commits.
+**Repo detail** — click any repo name in the matrix.
 
-GitHub caps a comparison at 250 commits, so a larger gap says so rather than
-quietly showing a partial list.
+*Pull requests* come first, with Open and Closed tabs, newest first in both, 20 at
+a time. Each PR lists its individual checks as pills; **Details** expands a table
+of every check with workflow, status, start, finish and duration, plus a Copy link
+button that deep-links to that expanded view (`#pr-160`). A **Base** filter
+narrows the list to one configured branch, with an *Other* chip when something
+targets a branch the config does not know about.
+
+*Pipeline* shows each environment's branch, SHA and run status.
+
+*Hop panels* are accordions, one per step, listing the commits actually waiting
+there with author, PR number and age. This is where `↑22` turns into twenty-two
+named commits. GitHub caps a comparison at 250, so a larger gap says so rather
+than showing a partial list quietly.
+
+*Branch graph* — a commit-per-row graph of the configured branches only, never
+all of them (one repo here has 1092). Coloured rails per branch, a dot where a
+commit is present, rings for merge commits. Merge rows carry a `staging → main`
+badge read from the commit subject, and a curve connects each cross-lane merge to
+the branch tip it absorbed. The **Graph** link in the header opens and scrolls to
+it. Loads only when expanded.
 
 **Open pull requests** — sorted by what you can act on, not by date. `READY` first,
 `DRAFT` last. Ages over seven days are highlighted.
+
+## Check timings, including other repos'
+
+An Actions check run reports its own duration. A **commit status** does not — the
+API records only when each state was posted, and GraphQL returns just the latest
+one per context, leaving a single timestamp with nothing to subtract from.
+
+Expanding a PR's Details resolves them properly. Every status for a context is
+read, not just the newest, because the final one often links to a report page
+while the run link sits on an earlier `pending` entry. That link is followed to
+the workflow run behind it — which may live in **a different repo**, as
+`qa/staging-regression` on `web-elbe-ai` is produced by `elbe-qa-automation`.
+
+Three tiers, so a check always shows the best answer available:
+
+| Source | When | Shown as |
+|---|---|---|
+| the run | a run link exists anywhere in the status trail | exact duration, workflow name, per-job breakdown |
+| status span | no run link but several statuses | `8m03s ~` — the tilde marks it as inferred; it includes queue time |
+| none | a single status only | `—` |
+
+A run in another repo is labelled with where it came from.
 
 ## Known behaviour: 404s return 200
 

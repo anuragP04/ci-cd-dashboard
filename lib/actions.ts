@@ -5,6 +5,8 @@ import { projectTag } from './data'
 import { getProject } from './config'
 import { resolveStatusChecks } from './resolve'
 import type { ResolvedCheck } from './types'
+import { gh } from './github'
+import { getBranchGraph, type BranchGraph } from './graph'
 
 /**
  * Drop this project's cached GitHub data so the next render refetches.
@@ -35,5 +37,42 @@ export async function fetchCheckDetail(
     return { checks: await resolveStatusChecks(project.org, repoName, prNumber), error: null }
   } catch (err: any) {
     return { checks: [], error: err?.message ?? 'could not load check detail' }
+  }
+}
+
+/**
+ * Branch graph for a repo, loaded when its panel is expanded so the page
+ * itself costs nothing extra.
+ *
+ * `main` is always included even when the config does not map it, because a
+ * graph that omits the production branch answers the wrong question.
+ */
+export async function fetchBranchGraph(
+  projectKey: string,
+  repoName: string,
+  branches: string[],
+  envByBranch: Record<string, string>,
+): Promise<BranchGraph> {
+  const project = getProject(projectKey)
+  if (!project) return { lanes: [], commits: [], truncated: false, error: 'unknown project' }
+
+  let lanes = [...branches]
+  try {
+    const info = await gh().rest.repos.get({ owner: project.org, repo: repoName })
+    const def = info.data.default_branch
+    if (def && !lanes.includes(def)) lanes.push(def)
+  } catch {
+    if (!lanes.includes('main')) lanes.push('main')
+  }
+
+  try {
+    return await getBranchGraph(project.org, repoName, lanes, envByBranch)
+  } catch (err: any) {
+    return {
+      lanes: [],
+      commits: [],
+      truncated: false,
+      error: err?.message ?? 'could not build the branch graph',
+    }
   }
 }
