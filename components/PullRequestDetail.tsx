@@ -45,6 +45,7 @@ function tip(c: PrCheck): string {
 function Row({ p, closed }: { p: PullRequest; closed: boolean }) {
   const failed = p.checks.filter((c) => c.state === 'failure').length
   const running = p.checks.filter((c) => c.state === 'pending').length
+  const passed = p.checks.filter((c) => c.state === 'success').length
 
   return (
     <div className="pr">
@@ -61,12 +62,11 @@ function Row({ p, closed }: { p: PullRequest; closed: boolean }) {
         <span className={`pill p-${p.status.replace(/\s/g, '')}`}>{p.status}</span>
       </div>
 
-      {!closed &&
-        (p.checks.length === 0 ? (
-          <div className="pr-checks empty-checks">
-            No checks reported on this PR&apos;s head commit
-          </div>
-        ) : (
+      {p.checks.length === 0 ? (
+        <div className="pr-checks empty-checks">
+          No checks reported on this PR&apos;s head commit
+        </div>
+      ) : (
           <div className="pr-checks">
             {p.checks.map((c) => (
               <a
@@ -86,13 +86,16 @@ function Row({ p, closed }: { p: PullRequest; closed: boolean }) {
                 +{p.checksTotal - p.checks.length} more
               </span>
             )}
-            <span className="chk-summary">
-              {failed > 0 && <b className="bad">{failed} failed</b>}
-              {failed > 0 && running > 0 && ' · '}
-              {running > 0 && <b className="warn-t">{running} running</b>}
-            </span>
-          </div>
-        ))}
+          <span className="chk-summary">
+            {failed > 0 && <b className="bad">{failed} failed</b>}
+            {failed > 0 && running > 0 && ' · '}
+            {running > 0 && <b className="warn-t">{running} running</b>}
+            {failed === 0 && running === 0 && passed > 0 && (
+              <b className="ok-t">all {passed} passed</b>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

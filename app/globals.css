@@ -347,3 +347,4 @@ details.acc > summary:hover .chev { border-left-color: var(--text); }
 
 .p-MERGED { background: rgba(188,140,255,0.14); color: var(--purple); }
 .p-CLOSED { background: rgba(248,81,73,0.12); color: var(--red); }
+.chk-summary .ok-t { color: var(--green); font-weight: 400; }

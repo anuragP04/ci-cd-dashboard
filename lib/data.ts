@@ -533,7 +533,7 @@ export function getCachedProjectData(project: ProjectConfig): Promise<ProjectDat
  * written by an older build is handed to newer code that expects fields it
  * does not have, and the page crashes on a missing property.
  */
-const SHAPE = 'v2'
+const SHAPE = 'v3'
 
 export function projectTag(key: string): string {
   return `project:${key}`
@@ -624,7 +624,7 @@ export async function getRepoDetail(
   let pulls: PullRequest[] = []
   let closedPulls: PullRequest[] = []
   try {
-    // Newest first in both tabs. Checks are only worth fetching for open PRs.
+    // Newest first in both tabs, with checks on both.
     pulls = (await fetchPulls(one, true, 'OPEN')).sort(
       (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
     )
@@ -632,7 +632,7 @@ export async function getRepoDetail(
     warnings.push(`Open pull requests: ${describe(err, 'pull requests')}`)
   }
   try {
-    closedPulls = (await fetchPulls(one, false, 'CLOSED', 100)).sort(
+    closedPulls = (await fetchPulls(one, true, 'CLOSED', 50)).sort(
       (a, b) =>
         Date.parse(b.endedAt ?? b.createdAt) - Date.parse(a.endedAt ?? a.createdAt),
     )
