@@ -5,7 +5,6 @@ import type {
   EnvCell,
   ProjectConfig,
   ProjectData,
-  PromotionPair,
   PullRequest,
   PrStatus,
   RepoConfig,
@@ -165,7 +164,6 @@ async function buildCell(
   repo: RepoConfig,
   patterns: string[],
   env: string,
-  trunkSha: string | null,
   runs: Run[],
 ): Promise<EnvCell> {
   const base: EnvCell = {
@@ -174,6 +172,9 @@ async function buildCell(
     sha: null,
     fullSha: null,
     ahead: 0,
+    comparedTo: null,
+    oldestDays: null,
+    compareError: null,
     state: 'none',
     runUrl: null,
     error: null,
@@ -194,20 +195,6 @@ async function buildCell(
     return { ...base, error: describe(err, `branch for ${env}`) }
   }
 
-  let ahead = 0
-  if (trunkSha && trunkSha !== sha) {
-    try {
-      const cmp = await gh().rest.repos.compareCommitsWithBasehead({
-        owner: org,
-        repo: repo.name,
-        basehead: `${sha}...${trunkSha}`,
-      })
-      ahead = cmp.data.ahead_by
-    } catch {
-      /* diverged histories or force-push — leave at 0 rather than crash */
-    }
-  }
-
   const run = runs.find((r) => r.branch === branch)
 
   return {
@@ -215,7 +202,10 @@ async function buildCell(
     branch,
     sha: sha.slice(0, 7),
     fullSha: sha,
-    ahead,
+    ahead: 0,
+    comparedTo: null,
+    oldestDays: null,
+    compareError: null,
     state: run?.state ?? 'none',
     runUrl: run?.url ?? null,
     error: null,
@@ -264,15 +254,53 @@ async function buildRow(
           sha: null,
           fullSha: null,
           ahead: 0,
+          comparedTo: null,
+          oldestDays: null,
+      compareError: null,
           state: 'none',
           runUrl: null,
           error: null,
         }
         return Promise.resolve(empty)
       }
-      return buildCell(project.org, repo, patterns, env, trunkSha, runs)
+      return buildCell(project.org, repo, patterns, env, runs)
     }),
   )
+
+  // Each environment measures what is waiting to come into it from the
+  // previous one in the flow: staging against dev, prod against staging.
+  // The first environment measures against trunk. Environments with no mapped
+  // branch are skipped, so prod compares against dev when staging is absent.
+  let prevSha: string | null = trunkSha
+  let prevName = trunkName
+
+  for (const cell of cells) {
+    if (cell.error || !cell.fullSha) continue
+
+    cell.comparedTo = prevName
+
+    if (prevSha && prevSha !== cell.fullSha) {
+      try {
+        const cmp = await gh().rest.repos.compareCommitsWithBasehead({
+          owner: project.org,
+          repo: repo.name,
+          basehead: `${cell.fullSha}...${prevSha}`,
+        })
+        cell.ahead = cmp.data.ahead_by
+        const oldest = cmp.data.commits[0]?.commit?.committer?.date
+        if (oldest) {
+          cell.oldestDays = Math.floor((Date.now() - Date.parse(oldest)) / 86_400_000)
+        }
+      } catch (err) {
+        // Never leave this at 0 silently: a rate-limited or failed compare
+        // would render as "in sync" and hide real drift.
+        cell.compareError = describe(err, 'comparison')
+      }
+    }
+
+    prevSha = cell.fullSha
+    prevName = cell.branch ?? prevName
+  }
 
   return { name: repo.name, kind: repo.kind, trunk: trunkName, cells, error: null }
 }
@@ -308,60 +336,6 @@ function activeRuns(repo: string, runs: Run[]): ActiveRun[] {
       startedAt: r.startedAt,
       medianSeconds: medianDuration(runs, r.workflowId),
     }))
-}
-
-/**
- * Consecutive hops in the environment flow, e.g. develop -> release -> main.
- * Built from cells the matrix already resolved, so the only new cost is one
- * compare call per hop.
- */
-async function buildPromotions(
-  project: ProjectConfig,
-  rows: RepoRow[],
-): Promise<PromotionPair[]> {
-  const tasks: Promise<PromotionPair | null>[] = []
-
-  for (const row of rows) {
-    const hops = row.cells.filter((c) => c.branch && c.fullSha)
-    for (let i = 0; i < hops.length - 1; i++) {
-      const from = hops[i]
-      const to = hops[i + 1]
-      if (from.branch === to.branch) continue // same branch feeds both envs
-
-      tasks.push(
-        (async (): Promise<PromotionPair> => {
-          const pair: PromotionPair = {
-            repo: row.name,
-            from: from.branch!,
-            to: to.branch!,
-            ahead: 0,
-            oldestDays: null,
-            error: null,
-          }
-          try {
-            const cmp = await gh().rest.repos.compareCommitsWithBasehead({
-              owner: project.org,
-              repo: row.name,
-              basehead: `${to.fullSha}...${from.fullSha}`,
-            })
-            pair.ahead = cmp.data.ahead_by
-            const oldest = cmp.data.commits[0]?.commit?.committer?.date
-            if (oldest) {
-              pair.oldestDays = Math.floor(
-                (Date.now() - Date.parse(oldest)) / 86_400_000,
-              )
-            }
-          } catch (err) {
-            pair.error = describe(err, 'comparison')
-          }
-          return pair
-        })(),
-      )
-    }
-  }
-
-  const settled = await settle(tasks)
-  return settled.filter((p): p is PromotionPair => p !== null)
 }
 
 /** One GraphQL call covering every tracked repo's open PRs. */
@@ -473,8 +447,6 @@ export async function getProjectData(project: ProjectConfig): Promise<ProjectDat
     project.repos.map((repo, i) => buildRow(project, repo, runsPerRepo[i] ?? [])),
   )
 
-  const promotions = await buildPromotions(project, rows)
-
   const active = project.repos
     .flatMap((repo, i) => activeRuns(repo.name, runsPerRepo[i] ?? []))
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
@@ -501,7 +473,6 @@ export async function getProjectData(project: ProjectConfig): Promise<ProjectDat
   return {
     project,
     rows,
-    promotions,
     active,
     pulls,
     fetchedAt: new Date().toISOString(),

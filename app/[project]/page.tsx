@@ -3,7 +3,6 @@ import { getProject, getProjects } from '@/lib/config'
 import { getCachedProjectData } from '@/lib/data'
 import ActivityStrip from '@/components/ActivityStrip'
 import ReleaseMatrix from '@/components/ReleaseMatrix'
-import PromotionView from '@/components/PromotionView'
 import PullRequestQueue from '@/components/PullRequestQueue'
 import RefreshButton from '@/components/RefreshButton'
 
@@ -47,7 +46,6 @@ export default async function ProjectPage({
 
       <ActivityStrip runs={data.active} idle={idle} />
       <ReleaseMatrix project={project} rows={data.rows} />
-      <PromotionView pairs={data.promotions} />
       <PullRequestQueue pulls={data.pulls} />
     </main>
   )

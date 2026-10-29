@@ -42,8 +42,20 @@ export interface EnvCell {
   sha: string | null
   /** Full SHA, used for compare calls. */
   fullSha: string | null
-  /** Commits on trunk that have not reached this branch. */
+  /**
+   * Commits waiting to come *into* this environment from the previous one in
+   * the flow. The first environment measures against trunk.
+   */
   ahead: number
+  /** What this cell is compared against, for the tooltip. */
+  comparedTo: string | null
+  /** Age in days of the oldest commit still waiting. */
+  oldestDays: number | null
+  /**
+   * Set when the comparison itself failed. Without this a failed compare
+   * renders as "0 behind", which reads as healthy — the worst way to be wrong.
+   */
+  compareError: string | null
   state: RunState
   runUrl: string | null
   /** Set when the configured branch could not be resolved — surfaced loudly. */
@@ -91,21 +103,9 @@ export interface PullRequest {
   status: PrStatus
 }
 
-/** One hop in the branch flow, e.g. develop -> release. */
-export interface PromotionPair {
-  repo: string
-  from: string
-  to: string
-  ahead: number
-  /** Age in days of the oldest unpromoted commit. */
-  oldestDays: number | null
-  error: string | null
-}
-
 export interface ProjectData {
   project: ProjectConfig
   rows: RepoRow[]
-  promotions: PromotionPair[]
   active: ActiveRun[]
   pulls: PullRequest[]
   fetchedAt: string

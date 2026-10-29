@@ -98,9 +98,10 @@
           "name": "web-elbe-ai",
           "kind": "frontend",
           "trunk": [
-            "staging"
+            "testing"
           ],
           "branches": {
+            "testing": "dev",
             "staging": "staging",
             "main": "prod"
           }

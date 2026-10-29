@@ -69,13 +69,18 @@ and it keeps the app to a single moving part.
 30 minutes. Empty is the all-clear. A progress bar estimates completion from the
 median of recent successful runs of the same workflow.
 
-**Release matrix** — one row per repo, one column per environment. `↑12` means
-twelve commits are merged to trunk but have not reached that environment. Red
-above ten.
+**Release matrix** — one row per repo, one column per environment.
 
-**Branch promotion** — deployment-independent. For repos whose environments map to
-different branches, shows how far each hop (`develop → main`) has fallen behind and
-the age of the oldest unpromoted commit. Age is the stronger signal of the two.
+Each cell measures what is waiting to come **into** that environment from the
+previous one in the flow: staging against dev, prod against staging. The first
+environment measures against trunk. So `↑12` on prod means twelve commits sit in
+staging that have not been released.
+
+Red above ten. A second amber number is the age in days of the oldest waiting
+commit — usually the more alarming of the two.
+
+A `?` badge means the comparison itself failed (rate limit, or a force-pushed
+branch). It is deliberately not rendered as `↑0`, which would read as in sync.
 
 **Open pull requests** — sorted by what you can act on, not by date. `READY` first,
 `DRAFT` last. Ages over seven days are highlighted.

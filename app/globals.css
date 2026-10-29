@@ -159,3 +159,5 @@ button.tab:hover { background: var(--border); }
 button.tab:disabled { opacity: 0.6; cursor: default; }
 .spin { display: inline-block; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.age { font-family: var(--mono); font-size: 10px; color: var(--amber); margin-left: 6px; }

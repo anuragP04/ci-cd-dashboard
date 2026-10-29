@@ -52,9 +52,22 @@ export default function ReleaseMatrix({
                         ) : (
                           <span className="sha">{cell.sha}</span>
                         )}
-                        {cell.ahead > 0 && (
-                          <span className={`ahead${cell.ahead > 10 ? ' big' : ''}`}>
+                        {cell.compareError && (
+                          <span className="ahead big" title={cell.compareError}>
+                            ?
+                          </span>
+                        )}
+                        {!cell.compareError && cell.ahead > 0 && (
+                          <span
+                            className={`ahead${cell.ahead > 10 ? ' big' : ''}`}
+                            title={`${cell.ahead} commits in ${cell.comparedTo} not yet in ${cell.branch}`}
+                          >
                             ↑{cell.ahead}
+                          </span>
+                        )}
+                        {cell.oldestDays !== null && cell.oldestDays >= 7 && (
+                          <span className="age" title="age of the oldest waiting commit">
+                            {cell.oldestDays}d
                           </span>
                         )}
                       </>

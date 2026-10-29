@@ -5,7 +5,7 @@ export default function Loading() {
         <h1>Delivery</h1>
         <span className="stamp">loading…</span>
       </header>
-      {['Right now', 'Release matrix', 'Branch promotion', 'Open pull requests'].map(
+      {['Right now', 'Release matrix', 'Open pull requests'].map(
         (title) => (
           <section className="panel" key={title}>
             <div className="panel-head">
