@@ -223,8 +223,15 @@ td:last-child [data-tip]::before, th:last-child [data-tip]::before {
   left: auto; right: 10px; transform: none;
 }
 
-/* the dot is tiny — give it a bigger hover target */
-.dot[data-tip] { padding: 4px; margin: -4px 3px -4px -4px; background-clip: content-box; }
+/* The dot is tiny, so pad it out into a bigger hover target. box-sizing must
+   be content-box here: the global border-box rule would subtract the padding
+   from the 7px size and collapse the painted area to nothing. */
+.dot[data-tip] {
+  box-sizing: content-box;
+  padding: 5px;
+  margin: -5px 2px -5px -5px;
+  background-clip: content-box;
+}
 
 @media (hover: none) {
   [data-tip]::after, [data-tip]::before { display: none; }
