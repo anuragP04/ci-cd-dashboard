@@ -113,6 +113,29 @@ export interface PrCheck {
   completedAt: string | null
 }
 
+/** A check enriched by following its status trail to the real run. */
+export interface ResolvedCheck {
+  name: string
+  state: CheckState
+  /** The bot's own words, e.g. "14 passed · 0 flaky". */
+  description: string | null
+  startedAt: string | null
+  completedAt: string | null
+  durationSeconds: number | null
+  url: string | null
+  workflow: string | null
+  /** "owner/repo" when the run lives outside the PR's own repo. */
+  foreignRepo: string | null
+  jobs: { name: string; conclusion: string | null; durationSeconds: number | null }[]
+  /**
+   * How the timing was obtained:
+   *  run        - the actual workflow run, wherever it lives
+   *  statusspan - inferred from first pending to final status
+   *  none       - GitHub has no timing for this one
+   */
+  source: 'run' | 'statusspan' | 'none'
+}
+
 export interface PullRequest {
   repo: string
   number: number

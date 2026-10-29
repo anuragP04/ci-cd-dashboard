@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { CheckState, PrCheck, PullRequest } from '@/lib/types'
+import { fetchCheckDetail } from '@/lib/actions'
+import type { CheckState, PrCheck, PullRequest, ResolvedCheck } from '@/lib/types'
 
 const PAGE = 20
 
@@ -66,17 +67,59 @@ function Row({
   closed,
   isOpen,
   onToggle,
+  projectKey,
+  repoName,
 }: {
   p: PullRequest
   closed: boolean
   isOpen: boolean
   onToggle: () => void
+  projectKey: string
+  repoName: string
 }) {
+  const [resolved, setResolved] = useState<ResolvedCheck[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  // Commit statuses carry no timing of their own, so on expand we follow each
+  // one to the workflow run behind it — often in another repo.
+  useEffect(() => {
+    if (!isOpen || resolved !== null || loading) return
+    setLoading(true)
+    fetchCheckDetail(projectKey, repoName, p.number)
+      .then((r) => {
+        setResolved(r.checks)
+        setErr(r.error)
+      })
+      .catch((e) => setErr(String(e)))
+      .finally(() => setLoading(false))
+  }, [isOpen, resolved, loading, projectKey, repoName, p.number])
+
+  /** GraphQL rows, upgraded wherever the status trail gave us something better. */
+  const rows: ResolvedCheck[] = p.checks.map((c) => {
+    const hit = resolved?.find((r) => r.name === c.name)
+    if (hit && (hit.source === 'run' || c.durationSeconds === null)) return hit
+    return {
+      name: c.name,
+      state: c.state,
+      description: null,
+      startedAt: c.startedAt,
+      completedAt: c.completedAt,
+      durationSeconds: c.durationSeconds,
+      url: c.url,
+      workflow: c.workflow,
+      foreignRepo: null,
+      jobs: [],
+      source: c.durationSeconds === null ? 'none' : 'run',
+    }
+  })
   const failed = p.checks.filter((c) => c.state === 'failure').length
   const running = p.checks.filter((c) => c.state === 'pending').length
   const passed = p.checks.filter((c) => c.state === 'success').length
 
-  const total = p.checks.reduce((n, c) => n + (c.durationSeconds ?? 0), 0)
+
+
+  const total = rows.reduce((n, c) => n + (c.durationSeconds ?? 0), 0)
 
   return (
     <div className={`pr${isOpen ? ' pr-open' : ''}`} id={`pr-${p.number}`}>
@@ -145,7 +188,16 @@ function Row({
         <div className="chk-detail">
           <div className="chk-detail-head">
             <span>
-              {p.checks.length} checks · {dur(total)} total compute
+              {rows.length} checks
+              {total > 0 && ` · ${dur(total)} total`}
+              {loading && (
+                <>
+                  {' · '}
+                  <span className="spinner" />
+                  resolving run timings
+                </>
+              )}
+              {err && ` · ${err}`}
             </span>
             <a href={p.url} target="_blank" rel="noreferrer" className="subtab">
               Open PR ↗
@@ -164,8 +216,8 @@ function Row({
               </tr>
             </thead>
             <tbody>
-              {p.checks.map((c) => (
-                <tr key={c.name + c.url}>
+              {rows.map((c) => (
+                <tr key={c.name}>
                   <td>
                     {c.url ? (
                       <a href={c.url} target="_blank" rel="noreferrer">
@@ -174,16 +226,69 @@ function Row({
                     ) : (
                       c.name
                     )}
+                    {c.description && <div className="chk-desc">{c.description}</div>}
+                    {c.jobs.length > 0 && (
+                      <div className="chk-jobs">
+                        {c.jobs.map((j) => (
+                          <span key={j.name} className="chk-job">
+                            {j.name}
+                            {j.durationSeconds !== null && ` ${dur(j.durationSeconds)}`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
-                  <td className="sha">{c.workflow ?? '—'}</td>
+                  <td className="sha">
+                    {loading && c.workflow === null ? (
+                      <span className="shim w-md" />
+                    ) : (
+                      (c.workflow ?? '—')
+                    )}
+                    {c.foreignRepo && (
+                      <div
+                        className="chk-foreign"
+                        data-tip={`This check is produced by a workflow in ${c.foreignRepo}, a different repo`}
+                      >
+                        ↗ {c.foreignRepo.split('/')[1]}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <span className={`chk c-${c.state} chk-flat`}>
                       <b>{MARK[c.state]}</b> {STATE_LABEL[c.state]}
                     </span>
                   </td>
-                  <td className="num">{clock(c.startedAt)}</td>
-                  <td className="num">{clock(c.completedAt)}</td>
-                  <td className="num">{c.durationSeconds === null ? '—' : dur(c.durationSeconds)}</td>
+                  <td className="num">
+                    {loading && c.source === 'none' ? (
+                      <span className="shim w-md" />
+                    ) : (
+                      clock(c.startedAt)
+                    )}
+                  </td>
+                  <td className="num">
+                    {loading && c.source === 'none' ? (
+                      <span className="shim w-md" />
+                    ) : (
+                      clock(c.completedAt)
+                    )}
+                  </td>
+                  <td className="num">
+                    {c.durationSeconds === null ? (
+                      loading ? <span className="shim w-sm" /> : '—'
+                    ) : (
+                      <>
+                        {dur(c.durationSeconds)}
+                        {c.source === 'statusspan' && (
+                          <span
+                            className="approx"
+                            data-tip="GitHub records no duration for this check. This is the gap between its first pending status and its final one, so it includes queue time."
+                          >
+                            ~
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -221,9 +326,13 @@ function CopyLink({ number }: { number: number }) {
 export default function PullRequestDetail({
   open = [],
   closed = [],
+  projectKey,
+  repoName,
 }: {
   open?: PullRequest[]
   closed?: PullRequest[]
+  projectKey: string
+  repoName: string
 }) {
   const [tab, setTab] = useState<'open' | 'closed'>('open')
   // One expanded PR at a time, across both tabs.
@@ -291,6 +400,8 @@ export default function PullRequestDetail({
               key={p.url}
               p={p}
               closed={tab === 'closed'}
+              projectKey={projectKey}
+              repoName={repoName}
               isOpen={expanded === p.number}
               onToggle={() => {
                 const next = expanded === p.number ? null : p.number

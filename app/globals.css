@@ -386,3 +386,60 @@ details.acc > summary:hover .chev { border-left-color: var(--text); }
   .chk-detail { overflow-x: auto; }
   .chk-detail table { min-width: 560px; }
 }
+
+.chk-desc { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.chk-jobs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.chk-job {
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+}
+.chk-foreign {
+  font-size: 10px; color: var(--purple); margin-top: 3px; cursor: help;
+}
+.approx { color: var(--dim); margin-left: 3px; cursor: help; }
+
+/* ---- loaders ---- */
+.spinner {
+  display: inline-block;
+  width: 11px; height: 11px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -1px;
+  margin-right: 6px;
+}
+
+/* shimmering placeholder bar, sized by the element it sits in */
+.shim {
+  display: inline-block;
+  height: 9px;
+  min-width: 42px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 0%,
+    var(--border) 50%,
+    var(--panel-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+.shim.w-sm { width: 46px; }
+.shim.w-md { width: 92px; }
+.shim.w-lg { width: 150px; }
+.shim.row { height: 11px; margin: 3px 0; }
+
+@keyframes shimmer {
+  0%   { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* skeleton panel bodies */
+.skel { padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+.skel-line { display: flex; gap: 12px; align-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+  .shim { animation: none; background: var(--panel-2); }
+}

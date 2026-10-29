@@ -44,7 +44,16 @@ export default function RefreshButton({
 
   return (
     <span className="refresh">
-      <span className="stamp">{pending ? 'refreshing…' : `updated ${label}`}</span>
+      <span className="stamp">
+        {pending ? (
+          <>
+            <span className="spinner" />
+            refreshing
+          </>
+        ) : (
+          `updated ${label}`
+        )}
+      </span>
       <button
         className="tab"
         onClick={hardRefresh}

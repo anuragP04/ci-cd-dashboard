@@ -54,7 +54,12 @@ export default async function RepoPage({
         </div>
       )}
 
-      <PullRequestDetail open={d.pulls} closed={d.closedPulls} />
+      <PullRequestDetail
+        open={d.pulls}
+        closed={d.closedPulls}
+        projectKey={key}
+        repoName={d.repo.name}
+      />
 
       {/* ---- pipeline ---- */}
       <section className="panel">
