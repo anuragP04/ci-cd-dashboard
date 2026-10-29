@@ -13,67 +13,114 @@
         {
           "name": "FMA-FE-Service",
           "kind": "frontend",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
             "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
           "name": "FMA-Add-in",
           "kind": "frontend",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
             "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
           "name": "FMA-Node-Service",
           "kind": "service",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
             "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
           "name": "FMA-Py-Service",
           "kind": "service",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
             "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
           "name": "FMA-Auth-Service",
           "kind": "service",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
             "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
           "name": "FMA-Dashboard-Prototype",
           "kind": "frontend",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
-            "develop": "dev"
+            "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
+            "main": "prod"
           }
         },
         {
           "name": "FMA-Terraform",
           "kind": "tooling",
-          "trunk": "main",
-          "branches": {}
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
+          "branches": {
+            "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
+            "main": "prod"
+          }
         },
         {
           "name": "FMA-QA-Automation",
           "kind": "tooling",
-          "trunk": "main",
-          "branches": {}
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
+          "branches": {
+            "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
+            "main": "prod"
+          }
         }
       ]
     },
@@ -82,33 +129,52 @@
       "name": "Project 2 (awaiting repo names)",
       "org": "REPLACE_WITH_YOUR_GITHUB_ORG",
       "environments": [
+        "dev",
         "staging",
         "prod"
       ],
       "repos": [
         {
-          "name": "beta-web",
+          "name": "REPLACE-repo-1",
           "kind": "frontend",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
-            "develop": "staging",
+            "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
-          "name": "beta-api",
+          "name": "REPLACE-repo-2",
           "kind": "service",
-          "trunk": "main",
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
           "branches": {
-            "develop": "staging",
+            "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
             "main": "prod"
           }
         },
         {
-          "name": "beta-qa",
+          "name": "REPLACE-repo-3",
           "kind": "tooling",
-          "trunk": "main",
-          "branches": {}
+          "trunk": [
+            "develop",
+            "dev-draft"
+          ],
+          "branches": {
+            "develop": "dev",
+            "dev-draft": "dev",
+            "staging": "staging",
+            "main": "prod"
+          }
         }
       ]
     }

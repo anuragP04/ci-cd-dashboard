@@ -3,8 +3,19 @@ export type RepoKind = 'service' | 'frontend' | 'library' | 'tooling'
 export interface RepoConfig {
   name: string
   kind: RepoKind
-  trunk: string
-  /** branch pattern -> environment name. Patterns may contain a `*` glob. */
+  /**
+   * The integration branch drift is measured *from* — where merges land first.
+   * In a main -> staging -> develop flow that is `develop`, not `main`.
+   *
+   * A list means "first of these that exists", for repos that disagree on
+   * naming (develop vs dev-draft).
+   */
+  trunk: string | string[]
+  /**
+   * Branch pattern -> environment name. Patterns may contain a `*` glob.
+   * Several patterns may map to the same environment; they are tried in order
+   * and the first that exists wins.
+   */
   branches: Record<string, string>
 }
 

@@ -23,20 +23,30 @@ config carries git history and review.
 
 ```json
 {
-  "name": "api-core",
+  "name": "FMA-Node-Service",
   "kind": "service",
-  "trunk": "main",
-  "branches": { "develop": "dev", "release/*": "staging", "main": "prod" }
+  "trunk": ["develop", "dev-draft"],
+  "branches": {
+    "develop": "dev",
+    "dev-draft": "dev",
+    "staging": "staging",
+    "main": "prod"
+  }
 }
 ```
 
 - `kind` — `service` | `frontend` | `library` | `tooling`. Libraries and tooling
-  have no environments; give them `"branches": {}`.
-- `trunk` — the branch drift is measured *from*. In gitflow repos this is usually
-  `develop`, not `main`.
-- `branches` — branch pattern to environment. Patterns may contain `*`; the
-  lexicographically greatest match wins, so zero-pad release numbers
-  (`release/1.09.0`) if you use more than nine minor versions.
+  with nothing to deploy take `"branches": {}`.
+- `trunk` — the branch drift is measured **from**: where merges land first. In a
+  `develop → staging → main` flow that is `develop`, **not** `main`. Getting this
+  backwards makes every cell report `↑0`, which looks healthy and is wrong.
+  A list means "first of these that exists", for repos that disagree on naming.
+- `branches` — branch pattern to environment. Several patterns may map to the
+  same environment; they are tried in order and the first that exists wins, which
+  is how `develop` and `dev-draft` coexist. Patterns may contain `*`; matches are
+  compared numerically, so `release/1.10.0` beats `release/1.9.0`.
+- `environments` — listed in **flow order** (`dev`, `staging`, `prod`). The branch
+  promotion view derives its hops from this order.
 
 Environments are branch-driven: whatever sits at the head of the mapped branch is
 treated as deployed to that environment.

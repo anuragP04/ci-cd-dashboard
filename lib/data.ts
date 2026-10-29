@@ -106,10 +106,36 @@ function describe(err: any, subject: string): string {
   return err?.message ?? `could not read ${subject}`
 }
 
+/**
+ * Resolve the first candidate pattern that names a branch which exists.
+ *
+ * A 404 means "try the next candidate". Anything else (auth, rate limit) is
+ * rethrown — swallowing those would report a dead token as a missing branch,
+ * which is the failure mode this dashboard exists to avoid.
+ */
+async function resolveRef(
+  org: string,
+  repo: string,
+  patterns: string[],
+): Promise<{ branch: string; sha: string } | null> {
+  for (const pattern of patterns) {
+    const branch = await resolveBranch(org, repo, pattern)
+    if (!branch) continue
+    try {
+      const res = await gh().rest.repos.getBranch({ owner: org, repo, branch })
+      return { branch, sha: res.data.commit.sha }
+    } catch (err: any) {
+      if (err?.status === 404) continue
+      throw err
+    }
+  }
+  return null
+}
+
 async function buildCell(
   org: string,
   repo: RepoConfig,
-  pattern: string,
+  patterns: string[],
   env: string,
   trunkSha: string | null,
   runs: Run[],
@@ -125,23 +151,19 @@ async function buildCell(
     error: null,
   }
 
-  const branch = await resolveBranch(org, repo.name, pattern)
-  if (!branch) {
-    // Loud failure: an unresolvable branch would otherwise read as "ahead 0",
-    // which looks healthy. See PLAN.md G6.
-    return { ...base, error: `no branch matches "${pattern}"` }
-  }
-
+  let branch: string
   let sha: string
   try {
-    const res = await gh().rest.repos.getBranch({
-      owner: org,
-      repo: repo.name,
-      branch,
-    })
-    sha = res.data.commit.sha
+    const ref = await resolveRef(org, repo.name, patterns)
+    if (!ref) {
+      // Loud failure: an unresolvable branch would otherwise read as "ahead 0",
+      // which looks healthy. See PLAN.md G6.
+      return { ...base, error: `no branch matching ${patterns.map((p) => `"${p}"`).join(' or ')}` }
+    }
+    branch = ref.branch
+    sha = ref.sha
   } catch (err) {
-    return { ...base, branch, error: describe(err, `branch "${branch}"`) }
+    return { ...base, error: describe(err, `branch for ${env}`) }
   }
 
   let ahead = 0
@@ -177,28 +199,37 @@ async function buildRow(
   repo: RepoConfig,
   runs: Run[],
 ): Promise<RepoRow> {
+  const trunkCandidates = Array.isArray(repo.trunk) ? repo.trunk : [repo.trunk]
   let trunkSha: string | null = null
+  let trunkName = trunkCandidates[0] ?? '(none)'
+
   try {
-    const res = await gh().rest.repos.getBranch({
-      owner: project.org,
-      repo: repo.name,
-      branch: repo.trunk,
-    })
-    trunkSha = res.data.commit.sha
+    const ref = await resolveRef(project.org, repo.name, trunkCandidates)
+    if (!ref) {
+      return {
+        name: repo.name,
+        kind: repo.kind,
+        trunk: trunkName,
+        cells: [],
+        error: `no trunk branch matching ${trunkCandidates.map((t) => `"${t}"`).join(' or ')}`,
+      }
+    }
+    trunkName = ref.branch
+    trunkSha = ref.sha
   } catch (err) {
     return {
       name: repo.name,
       kind: repo.kind,
-      trunk: repo.trunk,
+      trunk: trunkName,
       cells: [],
-      error: describe(err, `trunk "${repo.trunk}"`),
+      error: describe(err, 'trunk branch'),
     }
   }
 
   const cells = await Promise.all(
     project.environments.map((env) => {
-      const pattern = Object.keys(repo.branches).find((p) => repo.branches[p] === env)
-      if (!pattern) {
+      const patterns = Object.keys(repo.branches).filter((p) => repo.branches[p] === env)
+      if (patterns.length === 0) {
         const empty: EnvCell = {
           env,
           branch: null,
@@ -211,11 +242,11 @@ async function buildRow(
         }
         return Promise.resolve(empty)
       }
-      return buildCell(project.org, repo, pattern, env, trunkSha, runs)
+      return buildCell(project.org, repo, patterns, env, trunkSha, runs)
     }),
   )
 
-  return { name: repo.name, kind: repo.kind, trunk: repo.trunk, cells, error: null }
+  return { name: repo.name, kind: repo.kind, trunk: trunkName, cells, error: null }
 }
 
 function medianDuration(runs: Run[], workflowId: number): number | null {
