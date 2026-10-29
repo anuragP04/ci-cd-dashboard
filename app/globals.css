@@ -443,3 +443,53 @@ details.acc > summary:hover .chev { border-left-color: var(--text); }
   .spinner { animation-duration: 2.4s; }
   .shim { animation: none; background: var(--panel-2); }
 }
+
+/* ---- login gate ---- */
+.gate {
+  min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.gate-card {
+  display: flex; flex-direction: column; gap: 12px;
+  width: 100%; max-width: 330px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 26px 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.gate-card h1 { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
+.gate-card p { margin: 0 0 4px; color: var(--muted); font-size: 13px; }
+
+.gate-card input {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 7px; padding: 10px 12px;
+  color: var(--text); font: inherit; font-size: 14px;
+  width: 100%;
+}
+.gate-card input:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+}
+.gate-card input.bad { border-color: var(--red); }
+.gate-card input.bad:focus { box-shadow: 0 0 0 3px rgba(248,81,73,0.15); }
+
+.gate-err { color: var(--red); font-size: 12px; margin-top: -4px; }
+
+.gate-card button {
+  background: var(--blue); border: none; color: #04121f;
+  font: inherit; font-size: 14px; font-weight: 600;
+  padding: 10px; border-radius: 7px; cursor: pointer;
+}
+.gate-card button:hover:not(:disabled) { filter: brightness(1.1); }
+.gate-card button:disabled { opacity: 0.4; cursor: default; }
+
+.gate-note { color: var(--dim); font-size: 11px; text-align: center; }
+
+.signout {
+  position: fixed; right: 14px; bottom: 14px; z-index: 40;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--dim); font: inherit; font-size: 11px;
+  padding: 5px 11px; border-radius: 6px; cursor: pointer;
+  opacity: 0.45; transition: opacity 0.15s ease;
+}
+.signout:hover { opacity: 1; color: var(--text); }
