@@ -1,44 +1,77 @@
 {
   "projects": [
     {
-      "key": "alpha",
-      "name": "Project Alpha",
-      "org": "copods",
-      "environments": ["dev", "staging", "prod"],
+      "key": "fma",
+      "name": "FMA",
+      "org": "REPLACE_WITH_YOUR_GITHUB_ORG",
+      "environments": [
+        "dev",
+        "staging",
+        "prod"
+      ],
       "repos": [
         {
-          "name": "web-admin",
+          "name": "FMA-FE-Service",
           "kind": "frontend",
           "trunk": "main",
-          "branches": { "develop": "dev", "main": "prod" }
+          "branches": {
+            "develop": "dev",
+            "main": "prod"
+          }
         },
         {
-          "name": "web-portal",
+          "name": "FMA-Add-in",
           "kind": "frontend",
           "trunk": "main",
-          "branches": { "develop": "dev", "main": "prod" }
+          "branches": {
+            "develop": "dev",
+            "main": "prod"
+          }
         },
         {
-          "name": "api-core",
+          "name": "FMA-Node-Service",
           "kind": "service",
           "trunk": "main",
-          "branches": { "develop": "dev", "release/*": "staging", "main": "prod" }
+          "branches": {
+            "develop": "dev",
+            "main": "prod"
+          }
         },
         {
-          "name": "ml-service",
+          "name": "FMA-Py-Service",
           "kind": "service",
           "trunk": "main",
-          "branches": { "main": "prod" }
+          "branches": {
+            "develop": "dev",
+            "main": "prod"
+          }
         },
         {
-          "name": "auth-service",
+          "name": "FMA-Auth-Service",
           "kind": "service",
           "trunk": "main",
-          "branches": { "develop": "dev", "main": "prod" }
+          "branches": {
+            "develop": "dev",
+            "main": "prod"
+          }
         },
         {
-          "name": "shared-lib",
-          "kind": "library",
+          "name": "FMA-Dashboard-Prototype",
+          "kind": "frontend",
+          "trunk": "main",
+          "branches": {
+            "develop": "dev"
+          }
+        },
+        {
+          "name": "FMA-Terraform",
+          "kind": "tooling",
+          "trunk": "main",
+          "branches": {}
+        },
+        {
+          "name": "FMA-QA-Automation",
+          "kind": "tooling",
           "trunk": "main",
           "branches": {}
         }
@@ -46,21 +79,30 @@
     },
     {
       "key": "beta",
-      "name": "Project Beta",
-      "org": "copods",
-      "environments": ["staging", "prod"],
+      "name": "Project 2 (awaiting repo names)",
+      "org": "REPLACE_WITH_YOUR_GITHUB_ORG",
+      "environments": [
+        "staging",
+        "prod"
+      ],
       "repos": [
         {
           "name": "beta-web",
           "kind": "frontend",
           "trunk": "main",
-          "branches": { "develop": "staging", "main": "prod" }
+          "branches": {
+            "develop": "staging",
+            "main": "prod"
+          }
         },
         {
           "name": "beta-api",
           "kind": "service",
           "trunk": "main",
-          "branches": { "develop": "staging", "main": "prod" }
+          "branches": {
+            "develop": "staging",
+            "main": "prod"
+          }
         },
         {
           "name": "beta-qa",
