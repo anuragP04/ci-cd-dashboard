@@ -363,6 +363,8 @@ const CHECK_FRAGMENT = `
 async function fetchPulls(
   project: ProjectConfig,
   withChecks = false,
+  states: 'OPEN' | 'CLOSED' = 'OPEN',
+  limit = 50,
 ): Promise<PullRequest[]> {
   const tracked = project.repos
   if (tracked.length === 0) return []
@@ -372,9 +374,9 @@ async function fetchPulls(
       (r, i) => `
     r${i}: repository(owner: "${project.org}", name: "${r.name}") {
       name
-      pullRequests(states: OPEN, first: 50, orderBy: {field: CREATED_AT, direction: DESC}) {
+      pullRequests(states: ${states === 'OPEN' ? '[OPEN]' : '[MERGED, CLOSED]'}, first: ${limit}, orderBy: {field: ${states === 'OPEN' ? 'CREATED_AT' : 'UPDATED_AT'}, direction: DESC}) {
         nodes {
-          number title isDraft createdAt url baseRefName
+          number title isDraft createdAt url baseRefName state mergedAt closedAt
           author { login }
           mergeable
           reviewDecision
@@ -422,7 +424,13 @@ async function fetchPulls(
         url: pr.url,
         createdAt: pr.createdAt,
         ageDays: Math.floor((Date.now() - Date.parse(pr.createdAt)) / 86_400_000),
-        status: prStatus(pr.isDraft, pr.reviewDecision, pr.mergeable, checks),
+        endedAt: pr.mergedAt ?? pr.closedAt ?? null,
+        status:
+          pr.state === 'MERGED'
+            ? 'MERGED'
+            : pr.state === 'CLOSED'
+              ? 'CLOSED'
+              : prStatus(pr.isDraft, pr.reviewDecision, pr.mergeable, checks),
       })
     }
   }
@@ -496,6 +504,8 @@ function prStatus(
 }
 
 const STATUS_RANK: Record<PrStatus, number> = {
+  MERGED: 7,
+  CLOSED: 8,
   READY: 0,
   'NEEDS REVIEW': 1,
   'WAITING CI': 2,
@@ -512,11 +522,18 @@ const STATUS_RANK: Record<PrStatus, number> = {
  * (elapsed timers) stay live.
  */
 export function getCachedProjectData(project: ProjectConfig): Promise<ProjectData> {
-  return unstable_cache(() => getProjectData(project), ['project-data', project.key], {
+  return unstable_cache(() => getProjectData(project), ['project-data', SHAPE, project.key], {
     revalidate: 60,
     tags: [projectTag(project.key)],
   })()
 }
+
+/**
+ * Bump when the cached object's shape changes. Without this, a cache entry
+ * written by an older build is handed to newer code that expects fields it
+ * does not have, and the page crashes on a missing property.
+ */
+const SHAPE = 'v2'
 
 export function projectTag(key: string): string {
   return `project:${key}`
@@ -603,13 +620,24 @@ export async function getRepoDetail(
 
   const hops = row.error ? [] : await buildHops(project, repo, row.trunk, row.cells)
 
+  const one = { ...project, repos: [repo] }
   let pulls: PullRequest[] = []
+  let closedPulls: PullRequest[] = []
   try {
-    pulls = (await fetchPulls({ ...project, repos: [repo] }, true)).sort(
-      (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.ageDays - a.ageDays,
+    // Newest first in both tabs. Checks are only worth fetching for open PRs.
+    pulls = (await fetchPulls(one, true, 'OPEN')).sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
     )
   } catch (err) {
-    warnings.push(`Pull requests: ${describe(err, 'pull requests')}`)
+    warnings.push(`Open pull requests: ${describe(err, 'pull requests')}`)
+  }
+  try {
+    closedPulls = (await fetchPulls(one, false, 'CLOSED', 100)).sort(
+      (a, b) =>
+        Date.parse(b.endedAt ?? b.createdAt) - Date.parse(a.endedAt ?? a.createdAt),
+    )
+  } catch (err) {
+    warnings.push(`Closed pull requests: ${describe(err, 'pull requests')}`)
   }
 
   return {
@@ -621,6 +649,7 @@ export async function getRepoDetail(
     hops,
     runs: activeRuns(repo.name, runs).slice(0, 10),
     pulls,
+    closedPulls,
     rowError: row.error,
     warnings,
   }
@@ -632,7 +661,7 @@ export function getCachedRepoDetail(
 ): Promise<RepoDetail | null> {
   return unstable_cache(
     () => getRepoDetail(project, repoName),
-    ['repo-detail', project.key, repoName],
+    ['repo-detail', SHAPE, project.key, repoName],
     { revalidate: 60, tags: [projectTag(project.key)] },
   )()
 }

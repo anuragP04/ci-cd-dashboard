@@ -54,6 +54,8 @@ export default async function RepoPage({
         </div>
       )}
 
+      <PullRequestDetail open={d.pulls} closed={d.closedPulls} />
+
       {/* ---- pipeline ---- */}
       <section className="panel">
         <div className="panel-head">
@@ -99,8 +101,9 @@ export default async function RepoPage({
 
       {/* ---- what is waiting at each hop ---- */}
       {d.hops.map((hop) => (
-        <section className="panel" key={`${hop.from}-${hop.to}`}>
-          <div className="panel-head">
+        <details className="panel acc" key={`${hop.from}-${hop.to}`}>
+          <summary className="panel-head">
+            <span className="chev" aria-hidden />
             <h2>
               {hop.from} → {hop.to}
             </h2>
@@ -111,7 +114,7 @@ export default async function RepoPage({
                   ? 'in sync'
                   : `${hop.ahead} waiting`}
             </span>
-          </div>
+          </summary>
 
           {hop.error ? (
             <div className="idle" style={{ color: 'var(--red)' }}>
@@ -156,10 +159,8 @@ export default async function RepoPage({
               )}
             </>
           )}
-        </section>
+        </details>
       ))}
-
-      <PullRequestDetail pulls={d.pulls} />
 
       {/* ---- recent runs ---- */}
       <section className="panel">

@@ -90,6 +90,8 @@ export type PrStatus =
   | 'WAITING CI'
   | 'CI FAILED'
   | 'DRAFT'
+  | 'MERGED'
+  | 'CLOSED'
 
 export type CheckState =
   | 'success'
@@ -122,6 +124,8 @@ export interface PullRequest {
   /** Only populated on the repo detail page; the project list skips it. */
   checks: PrCheck[]
   checksTotal: number
+  /** For closed tabs: when it was merged or closed, whichever applies. */
+  endedAt: string | null
 }
 
 /** A commit sitting in one branch that has not reached the next. */
@@ -155,6 +159,7 @@ export interface RepoDetail {
   hops: Hop[]
   runs: ActiveRun[]
   pulls: PullRequest[]
+  closedPulls: PullRequest[]
   rowError: string | null
   warnings: string[]
 }

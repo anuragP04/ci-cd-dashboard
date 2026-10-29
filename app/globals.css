@@ -308,3 +308,42 @@ code {
 .chk-summary { font-size: 11px; margin-left: 4px; }
 .chk-summary .bad { color: var(--red); }
 .chk-summary .warn-t { color: var(--amber); }
+
+/* ---- accordion ---- */
+details.acc > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  border-radius: 7px;             /* rounded all round while collapsed */
+}
+details.acc > summary::-webkit-details-marker { display: none; }
+details.acc > summary:hover { background: var(--border); }
+details[open].acc > summary { border-radius: 7px 7px 0 0; }
+
+.chev {
+  width: 0; height: 0;
+  border: 4px solid transparent;
+  border-left-color: var(--dim);
+  margin-right: 2px;
+  transition: transform 0.15s ease;
+  transform-origin: 2px 50%;
+}
+details[open].acc .chev { transform: rotate(90deg); }
+details.acc > summary:hover .chev { border-left-color: var(--text); }
+
+/* ---- sub tabs + load more ---- */
+.subtabs { display: flex; gap: 3px; }
+.subtab {
+  background: transparent; border: 1px solid transparent; color: var(--muted);
+  font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px;
+  cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline;
+}
+.subtab:hover { background: var(--border); color: var(--text); }
+.subtab.on { background: var(--panel); border-color: var(--border); color: var(--text); }
+.subtab .num { font-size: 11px; }
+
+.more { padding: 12px 14px; text-align: center; border-top: 1px solid rgba(48,54,61,0.5); }
+.more button { cursor: pointer; }
+
+.p-MERGED { background: rgba(188,140,255,0.14); color: var(--purple); }
+.p-CLOSED { background: rgba(248,81,73,0.12); color: var(--red); }
