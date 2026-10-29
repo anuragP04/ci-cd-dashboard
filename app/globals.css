@@ -273,3 +273,38 @@ code {
   .pipe-step { width: 100%; }
   .pipe-box { flex: 1; }
 }
+
+/* ---- PR with checks (detail page) ---- */
+.pr { padding: 12px 14px; border-bottom: 1px solid rgba(48,54,61,0.5); }
+.pr:last-child { border-bottom: none; }
+.pr-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pr-title { flex: 1; min-width: 220px; }
+
+.pr-checks {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px;
+  padding-left: 2px; align-items: center;
+}
+.empty-checks { color: var(--dim); font-size: 12px; }
+
+.chk {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-family: var(--mono); font-size: 11px;
+  padding: 3px 8px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--panel-2);
+  color: var(--muted); white-space: nowrap;
+}
+.chk:hover { text-decoration: none; border-color: var(--dim); }
+.chk b { font-weight: 700; }
+.chk em { font-style: normal; color: var(--dim); font-size: 10px; }
+
+.c-success  b { color: var(--green); }
+.c-failure    { border-color: rgba(248,81,73,0.45); }
+.c-failure  b { color: var(--red); }
+.c-pending    { border-color: rgba(210,153,34,0.45); }
+.c-pending  b { color: var(--amber); }
+.c-skipped  b, .c-cancelled b, .c-neutral b { color: var(--dim); }
+.c-skipped, .c-cancelled { opacity: 0.6; }
+
+.chk-summary { font-size: 11px; margin-left: 4px; }
+.chk-summary .bad { color: var(--red); }
+.chk-summary .warn-t { color: var(--amber); }

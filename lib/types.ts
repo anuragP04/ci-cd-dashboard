@@ -91,6 +91,24 @@ export type PrStatus =
   | 'CI FAILED'
   | 'DRAFT'
 
+export type CheckState =
+  | 'success'
+  | 'failure'
+  | 'pending'
+  | 'skipped'
+  | 'cancelled'
+  | 'neutral'
+
+/** One check run or commit status on a PR's head commit. */
+export interface PrCheck {
+  name: string
+  state: CheckState
+  /** The workflow the check belongs to, when it is an Actions check run. */
+  workflow: string | null
+  url: string | null
+  durationSeconds: number | null
+}
+
 export interface PullRequest {
   repo: string
   number: number
@@ -101,6 +119,9 @@ export interface PullRequest {
   createdAt: string
   ageDays: number
   status: PrStatus
+  /** Only populated on the repo detail page; the project list skips it. */
+  checks: PrCheck[]
+  checksTotal: number
 }
 
 /** A commit sitting in one branch that has not reached the next. */

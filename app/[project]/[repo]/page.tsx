@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getProject } from '@/lib/config'
 import { getCachedRepoDetail } from '@/lib/data'
-import PullRequestQueue from '@/components/PullRequestQueue'
+import PullRequestDetail from '@/components/PullRequestDetail'
 import RefreshButton from '@/components/RefreshButton'
 
 function ago(iso: string): string {
@@ -159,7 +159,7 @@ export default async function RepoPage({
         </section>
       ))}
 
-      <PullRequestQueue pulls={d.pulls} />
+      <PullRequestDetail pulls={d.pulls} />
 
       {/* ---- recent runs ---- */}
       <section className="panel">

@@ -8,6 +8,8 @@ import type {
   Hop,
   RepoDetail,
   WaitingCommit,
+  CheckState,
+  PrCheck,
   PullRequest,
   PrStatus,
   RepoConfig,
@@ -341,8 +343,27 @@ function activeRuns(repo: string, runs: Run[]): ActiveRun[] {
     }))
 }
 
+/** Individual check runs cost extra nodes, so only the detail page asks. */
+const CHECK_FRAGMENT = `
+              contexts(first: 40) {
+                totalCount
+                nodes {
+                  __typename
+                  ... on CheckRun {
+                    name status conclusion startedAt completedAt detailsUrl
+                    checkSuite { workflowRun { workflow { name } } }
+                  }
+                  ... on StatusContext {
+                    context state targetUrl
+                  }
+                }
+              }`
+
 /** One GraphQL call covering every tracked repo's open PRs. */
-async function fetchPulls(project: ProjectConfig): Promise<PullRequest[]> {
+async function fetchPulls(
+  project: ProjectConfig,
+  withChecks = false,
+): Promise<PullRequest[]> {
   const tracked = project.repos
   if (tracked.length === 0) return []
 
@@ -357,7 +378,15 @@ async function fetchPulls(project: ProjectConfig): Promise<PullRequest[]> {
           author { login }
           mergeable
           reviewDecision
-          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+          commits(last: 1) {
+            nodes {
+              commit {
+                statusCheckRollup {
+                  state${withChecks ? CHECK_FRAGMENT : ''}
+                }
+              }
+            }
+          }
         }
       }
     }`,
@@ -379,8 +408,12 @@ async function fetchPulls(project: ProjectConfig): Promise<PullRequest[]> {
     if (!node) continue
     for (const pr of node.pullRequests?.nodes ?? []) {
       if (!pr) continue
-      const checks = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null
+      const rollup = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup ?? null
+      const checks = rollup?.state ?? null
+      const contexts = rollup?.contexts?.nodes ?? []
       out.push({
+        checks: contexts.map(toCheck).filter((c: PrCheck | null) => c !== null),
+        checksTotal: rollup?.contexts?.totalCount ?? 0,
         repo: node.name,
         number: pr.number,
         title: pr.title,
@@ -394,6 +427,56 @@ async function fetchPulls(project: ProjectConfig): Promise<PullRequest[]> {
     }
   }
   return out
+}
+
+/** Normalise a CheckRun or a StatusContext into one shape. */
+function toCheck(node: any): PrCheck | null {
+  if (!node) return null
+
+  if (node.__typename === 'CheckRun') {
+    const state: CheckState =
+      node.status !== 'COMPLETED'
+        ? 'pending'
+        : node.conclusion === 'SUCCESS'
+          ? 'success'
+          : node.conclusion === 'SKIPPED'
+            ? 'skipped'
+            : node.conclusion === 'CANCELLED'
+              ? 'cancelled'
+              : node.conclusion === 'NEUTRAL' || node.conclusion === 'ACTION_REQUIRED'
+                ? 'neutral'
+                : 'failure'
+
+    const started = node.startedAt ? Date.parse(node.startedAt) : null
+    const ended = node.completedAt ? Date.parse(node.completedAt) : null
+
+    return {
+      name: node.name ?? 'check',
+      state,
+      workflow: node.checkSuite?.workflowRun?.workflow?.name ?? null,
+      url: node.detailsUrl ?? null,
+      durationSeconds:
+        started && ended ? Math.max(0, Math.round((ended - started) / 1000)) : null,
+    }
+  }
+
+  if (node.__typename === 'StatusContext') {
+    const state: CheckState =
+      node.state === 'SUCCESS'
+        ? 'success'
+        : node.state === 'PENDING' || node.state === 'EXPECTED'
+          ? 'pending'
+          : 'failure'
+    return {
+      name: node.context ?? 'status',
+      state,
+      workflow: null,
+      url: node.targetUrl ?? null,
+      durationSeconds: null,
+    }
+  }
+
+  return null
 }
 
 /** Collapse three GitHub fields into one verdict. See PLAN.md §3.4. */
@@ -522,7 +605,7 @@ export async function getRepoDetail(
 
   let pulls: PullRequest[] = []
   try {
-    pulls = (await fetchPulls({ ...project, repos: [repo] })).sort(
+    pulls = (await fetchPulls({ ...project, repos: [repo] }, true)).sort(
       (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.ageDays - a.ageDays,
     )
   } catch (err) {
