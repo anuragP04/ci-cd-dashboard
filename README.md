@@ -82,6 +82,14 @@ commit — usually the more alarming of the two.
 A `?` badge means the comparison itself failed (rate limit, or a force-pushed
 branch). It is deliberately not rendered as `↑0`, which would read as in sync.
 
+**Repo detail** — click any repo name in the matrix. Shows the pipeline as a
+strip, then one panel per hop listing the actual commits stuck at it with author,
+PR number and age, followed by that repo's open PRs and recent runs. This is where
+`↑22` turns into twenty-two named commits.
+
+GitHub caps a comparison at 250 commits, so a larger gap says so rather than
+quietly showing a partial list.
+
 **Open pull requests** — sorted by what you can act on, not by date. `READY` first,
 `DRAFT` last. Ages over seven days are highlighted.
 

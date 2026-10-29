@@ -5,6 +5,9 @@ import type {
   EnvCell,
   ProjectConfig,
   ProjectData,
+  Hop,
+  RepoDetail,
+  WaitingCommit,
   PullRequest,
   PrStatus,
   RepoConfig,
@@ -434,6 +437,121 @@ export function getCachedProjectData(project: ProjectConfig): Promise<ProjectDat
 
 export function projectTag(key: string): string {
   return `project:${key}`
+}
+
+/** Squash merges put the PR number in the subject: "fix: thing (#123)". */
+function prNumberFrom(message: string): number | null {
+  const m = message.split('\n')[0].match(/\(#(\d+)\)\s*$/)
+  return m ? Number(m[1]) : null
+}
+
+async function buildHops(
+  project: ProjectConfig,
+  repo: RepoConfig,
+  trunkName: string,
+  cells: EnvCell[],
+): Promise<Hop[]> {
+  const hops: Hop[] = []
+  let prev = cells.find((c) => c.branch === trunkName) ?? null
+
+  for (const cell of cells) {
+    if (!cell.branch || !cell.fullSha || cell.error) continue
+    if (!prev || prev.branch === cell.branch) {
+      prev = cell
+      continue
+    }
+
+    const hop: Hop = {
+      env: cell.env,
+      from: prev.branch!,
+      to: cell.branch,
+      ahead: cell.ahead,
+      commits: [],
+      truncated: false,
+      error: cell.compareError,
+    }
+
+    if (cell.ahead > 0 && !cell.compareError) {
+      try {
+        const cmp = await gh().rest.repos.compareCommitsWithBasehead({
+          owner: project.org,
+          repo: repo.name,
+          basehead: `${cell.fullSha}...${prev.fullSha}`,
+        })
+        // GitHub caps the inline commit list at 250 regardless of ahead_by.
+        hop.truncated = cmp.data.commits.length < cmp.data.ahead_by
+        hop.commits = cmp.data.commits
+          .map((c): WaitingCommit => ({
+            sha: c.sha.slice(0, 7),
+            message: c.commit.message.split('\n')[0],
+            author: c.author?.login ?? c.commit.author?.name ?? 'unknown',
+            date: c.commit.committer?.date ?? c.commit.author?.date ?? '',
+            url: c.html_url,
+            prNumber: prNumberFrom(c.commit.message),
+          }))
+          .reverse() // newest first
+      } catch (err) {
+        hop.error = describe(err, 'commit list')
+      }
+    }
+
+    hops.push(hop)
+    prev = cell
+  }
+
+  return hops
+}
+
+export async function getRepoDetail(
+  project: ProjectConfig,
+  repoName: string,
+): Promise<RepoDetail | null> {
+  const repo = project.repos.find((r) => r.name === repoName)
+  if (!repo) return null
+
+  const runs = (await settle([fetchRuns(project.org, repo.name)]))[0] ?? []
+  const row = await buildRow(project, repo, runs)
+
+  const warnings: string[] = []
+  for (const cell of row.cells) {
+    if (cell.error) warnings.push(`${cell.env}: ${cell.error}`)
+    if (cell.compareError) warnings.push(`${cell.env}: ${cell.compareError}`)
+  }
+
+  const hops = row.error ? [] : await buildHops(project, repo, row.trunk, row.cells)
+
+  let pulls: PullRequest[] = []
+  try {
+    pulls = (await fetchPulls({ ...project, repos: [repo] })).sort(
+      (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.ageDays - a.ageDays,
+    )
+  } catch (err) {
+    warnings.push(`Pull requests: ${describe(err, 'pull requests')}`)
+  }
+
+  return {
+    project,
+    repo,
+    trunk: row.trunk,
+    url: `https://github.com/${project.org}/${repo.name}`,
+    cells: row.cells,
+    hops,
+    runs: activeRuns(repo.name, runs).slice(0, 10),
+    pulls,
+    rowError: row.error,
+    warnings,
+  }
+}
+
+export function getCachedRepoDetail(
+  project: ProjectConfig,
+  repoName: string,
+): Promise<RepoDetail | null> {
+  return unstable_cache(
+    () => getRepoDetail(project, repoName),
+    ['repo-detail', project.key, repoName],
+    { revalidate: 60, tags: [projectTag(project.key)] },
+  )()
 }
 
 export async function getProjectData(project: ProjectConfig): Promise<ProjectData> {

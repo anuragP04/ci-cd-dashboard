@@ -103,6 +103,41 @@ export interface PullRequest {
   status: PrStatus
 }
 
+/** A commit sitting in one branch that has not reached the next. */
+export interface WaitingCommit {
+  sha: string
+  message: string
+  author: string
+  date: string
+  url: string
+  /** Parsed from a squash-merge subject like "fix: thing (#123)". */
+  prNumber: number | null
+}
+
+/** One step of the flow, with the commits actually stuck at it. */
+export interface Hop {
+  env: string
+  from: string
+  to: string
+  ahead: number
+  commits: WaitingCommit[]
+  truncated: boolean
+  error: string | null
+}
+
+export interface RepoDetail {
+  project: ProjectConfig
+  repo: RepoConfig
+  trunk: string
+  url: string
+  cells: EnvCell[]
+  hops: Hop[]
+  runs: ActiveRun[]
+  pulls: PullRequest[]
+  rowError: string | null
+  warnings: string[]
+}
+
 export interface ProjectData {
   project: ProjectConfig
   rows: RepoRow[]

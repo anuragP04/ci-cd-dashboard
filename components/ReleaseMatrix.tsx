@@ -77,9 +77,12 @@ export default function ReleaseMatrix({
           {rows.map((row) => (
             <tr key={row.name}>
               <td className="repo">
-                <span data-tip={`Trunk: "${row.trunk}" — drift is measured from here`}>
+                <a
+                  href={`/${project.key}/${encodeURIComponent(row.name)}`}
+                  data-tip={`Open ${row.name} — trunk is "${row.trunk}"`}
+                >
                   {row.name}
-                </span>
+                </a>
                 <span className="kind">{row.kind}</span>
               </td>
 

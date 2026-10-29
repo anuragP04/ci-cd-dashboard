@@ -236,3 +236,40 @@ td:last-child [data-tip]::before, th:last-child [data-tip]::before {
 @media (hover: none) {
   [data-tip]::after, [data-tip]::before { display: none; }
 }
+
+/* ---- repo detail ---- */
+.back { color: var(--muted); font-weight: 500; }
+.back:hover { color: var(--text); text-decoration: none; }
+.repo-title { font-size: 15px; font-weight: 600; }
+.repo-title .kind { font-size: 10px; }
+
+.repo a { color: var(--text); }
+.repo a:hover { color: var(--blue); text-decoration: none; }
+
+.pipe { display: flex; align-items: stretch; gap: 0; padding: 16px 14px; flex-wrap: wrap; }
+.pipe-step { display: flex; align-items: center; }
+.pipe-arrow {
+  padding: 0 10px; color: var(--dim); font-family: var(--mono); font-size: 13px;
+}
+.pipe-box {
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 9px 13px; min-width: 128px; background: var(--panel-2);
+}
+.pipe-box.muted { opacity: 0.45; }
+.pipe-env {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--dim); margin-bottom: 4px;
+}
+.pipe-branch { font-family: var(--mono); font-size: 12px; margin-bottom: 3px; }
+.pipe-box .sha { font-size: 12px; }
+
+code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--panel-2); padding: 1px 5px; border-radius: 4px;
+}
+
+@media (max-width: 760px) {
+  .pipe { flex-direction: column; align-items: flex-start; }
+  .pipe-step { width: 100%; }
+  .pipe-box { flex: 1; }
+}
