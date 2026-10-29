@@ -1,0 +1,451 @@
+import { unstable_cache } from 'next/cache'
+import { gh, settle } from './github'
+import type {
+  ActiveRun,
+  EnvCell,
+  ProjectConfig,
+  ProjectData,
+  PromotionPair,
+  PullRequest,
+  PrStatus,
+  RepoConfig,
+  RepoRow,
+  RunState,
+} from './types'
+
+const RUN_PAGE_SIZE = 25
+const FAILURE_PIN_MINUTES = 30
+
+/** A GitHub Actions run, trimmed to what the dashboard uses. */
+interface Run {
+  branch: string
+  sha: string
+  state: RunState
+  url: string
+  title: string
+  actor: string
+  startedAt: string
+  updatedAt: string
+  workflowId: number
+  durationSeconds: number | null
+}
+
+function runState(status: string | null, conclusion: string | null): RunState {
+  if (status === 'in_progress') return 'running'
+  if (status === 'queued' || status === 'requested' || status === 'waiting') return 'queued'
+  if (conclusion === 'success') return 'success'
+  if (conclusion === null) return 'none'
+  return 'failure'
+}
+
+async function fetchRuns(org: string, repo: string): Promise<Run[]> {
+  const res = await gh().rest.actions.listWorkflowRunsForRepo({
+    owner: org,
+    repo,
+    per_page: RUN_PAGE_SIZE,
+  })
+
+  return res.data.workflow_runs.map((r) => {
+    const started = r.run_started_at ?? r.created_at
+    const done = r.status === 'completed' ? r.updated_at : null
+    return {
+      branch: r.head_branch ?? '',
+      sha: r.head_sha,
+      state: runState(r.status, r.conclusion),
+      url: r.html_url,
+      title: r.display_title || r.name || 'workflow run',
+      actor: r.actor?.login ?? 'unknown',
+      startedAt: started,
+      updatedAt: r.updated_at,
+      workflowId: r.workflow_id,
+      durationSeconds: done
+        ? Math.round((Date.parse(done) - Date.parse(started)) / 1000)
+        : null,
+    }
+  })
+}
+
+/**
+ * Resolve a configured branch pattern to a real branch name.
+ *
+ * Globs pick the greatest match under a numeric-aware comparison, so
+ * `release/1.10.0` correctly beats `release/1.9.0` without zero padding.
+ */
+async function resolveBranch(
+  org: string,
+  repo: string,
+  pattern: string,
+): Promise<string | null> {
+  if (!pattern.includes('*')) return pattern
+
+  const res = await gh().rest.repos.listBranches({
+    owner: org,
+    repo,
+    per_page: 100,
+  })
+  const rx = new RegExp('^' + pattern.split('*').map(escapeRx).join('.*') + '$')
+  const matches = res.data.map((b) => b.name).filter((n) => rx.test(n))
+  matches.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+  return matches.at(-1) ?? null
+}
+
+function escapeRx(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Describe why a GitHub call failed, distinguishing auth and permission
+ * problems from a genuinely missing branch. Reporting "branch not found" for
+ * a 401 sends people debugging the wrong thing.
+ */
+function describe(err: any, subject: string): string {
+  const status = err?.status
+  if (status === 401) return 'GitHub auth failed — check GITHUB_TOKEN'
+  if (status === 403) return 'access denied or rate limited'
+  if (status === 404) return `${subject} not found (or token lacks access)`
+  return err?.message ?? `could not read ${subject}`
+}
+
+async function buildCell(
+  org: string,
+  repo: RepoConfig,
+  pattern: string,
+  env: string,
+  trunkSha: string | null,
+  runs: Run[],
+): Promise<EnvCell> {
+  const base: EnvCell = {
+    env,
+    branch: null,
+    sha: null,
+    fullSha: null,
+    ahead: 0,
+    state: 'none',
+    runUrl: null,
+    error: null,
+  }
+
+  const branch = await resolveBranch(org, repo.name, pattern)
+  if (!branch) {
+    // Loud failure: an unresolvable branch would otherwise read as "ahead 0",
+    // which looks healthy. See PLAN.md G6.
+    return { ...base, error: `no branch matches "${pattern}"` }
+  }
+
+  let sha: string
+  try {
+    const res = await gh().rest.repos.getBranch({
+      owner: org,
+      repo: repo.name,
+      branch,
+    })
+    sha = res.data.commit.sha
+  } catch (err) {
+    return { ...base, branch, error: describe(err, `branch "${branch}"`) }
+  }
+
+  let ahead = 0
+  if (trunkSha && trunkSha !== sha) {
+    try {
+      const cmp = await gh().rest.repos.compareCommitsWithBasehead({
+        owner: org,
+        repo: repo.name,
+        basehead: `${sha}...${trunkSha}`,
+      })
+      ahead = cmp.data.ahead_by
+    } catch {
+      /* diverged histories or force-push — leave at 0 rather than crash */
+    }
+  }
+
+  const run = runs.find((r) => r.branch === branch)
+
+  return {
+    env,
+    branch,
+    sha: sha.slice(0, 7),
+    fullSha: sha,
+    ahead,
+    state: run?.state ?? 'none',
+    runUrl: run?.url ?? null,
+    error: null,
+  }
+}
+
+async function buildRow(
+  project: ProjectConfig,
+  repo: RepoConfig,
+  runs: Run[],
+): Promise<RepoRow> {
+  let trunkSha: string | null = null
+  try {
+    const res = await gh().rest.repos.getBranch({
+      owner: project.org,
+      repo: repo.name,
+      branch: repo.trunk,
+    })
+    trunkSha = res.data.commit.sha
+  } catch (err) {
+    return {
+      name: repo.name,
+      kind: repo.kind,
+      trunk: repo.trunk,
+      cells: [],
+      error: describe(err, `trunk "${repo.trunk}"`),
+    }
+  }
+
+  const cells = await Promise.all(
+    project.environments.map((env) => {
+      const pattern = Object.keys(repo.branches).find((p) => repo.branches[p] === env)
+      if (!pattern) {
+        const empty: EnvCell = {
+          env,
+          branch: null,
+          sha: null,
+          fullSha: null,
+          ahead: 0,
+          state: 'none',
+          runUrl: null,
+          error: null,
+        }
+        return Promise.resolve(empty)
+      }
+      return buildCell(project.org, repo, pattern, env, trunkSha, runs)
+    }),
+  )
+
+  return { name: repo.name, kind: repo.kind, trunk: repo.trunk, cells, error: null }
+}
+
+function medianDuration(runs: Run[], workflowId: number): number | null {
+  const samples = runs
+    .filter((r) => r.workflowId === workflowId && r.state === 'success')
+    .map((r) => r.durationSeconds)
+    .filter((d): d is number => d !== null)
+    .sort((a, b) => a - b)
+
+  if (samples.length === 0) return null
+  return samples[Math.floor(samples.length / 2)]
+}
+
+function activeRuns(repo: string, runs: Run[]): ActiveRun[] {
+  const cutoff = Date.now() - FAILURE_PIN_MINUTES * 60_000
+
+  return runs
+    .filter((r) => {
+      if (r.state === 'running' || r.state === 'queued') return true
+      // Failures stay pinned briefly so they are seen, then fall through
+      // to the matrix.
+      return r.state === 'failure' && Date.parse(r.updatedAt) > cutoff
+    })
+    .map((r) => ({
+      repo,
+      title: r.title,
+      branch: r.branch,
+      actor: r.actor,
+      state: r.state,
+      url: r.url,
+      startedAt: r.startedAt,
+      medianSeconds: medianDuration(runs, r.workflowId),
+    }))
+}
+
+/**
+ * Consecutive hops in the environment flow, e.g. develop -> release -> main.
+ * Built from cells the matrix already resolved, so the only new cost is one
+ * compare call per hop.
+ */
+async function buildPromotions(
+  project: ProjectConfig,
+  rows: RepoRow[],
+): Promise<PromotionPair[]> {
+  const tasks: Promise<PromotionPair | null>[] = []
+
+  for (const row of rows) {
+    const hops = row.cells.filter((c) => c.branch && c.fullSha)
+    for (let i = 0; i < hops.length - 1; i++) {
+      const from = hops[i]
+      const to = hops[i + 1]
+      if (from.branch === to.branch) continue // same branch feeds both envs
+
+      tasks.push(
+        (async (): Promise<PromotionPair> => {
+          const pair: PromotionPair = {
+            repo: row.name,
+            from: from.branch!,
+            to: to.branch!,
+            ahead: 0,
+            oldestDays: null,
+            error: null,
+          }
+          try {
+            const cmp = await gh().rest.repos.compareCommitsWithBasehead({
+              owner: project.org,
+              repo: row.name,
+              basehead: `${to.fullSha}...${from.fullSha}`,
+            })
+            pair.ahead = cmp.data.ahead_by
+            const oldest = cmp.data.commits[0]?.commit?.committer?.date
+            if (oldest) {
+              pair.oldestDays = Math.floor(
+                (Date.now() - Date.parse(oldest)) / 86_400_000,
+              )
+            }
+          } catch (err) {
+            pair.error = describe(err, 'comparison')
+          }
+          return pair
+        })(),
+      )
+    }
+  }
+
+  const settled = await settle(tasks)
+  return settled.filter((p): p is PromotionPair => p !== null)
+}
+
+/** One GraphQL call covering every tracked repo's open PRs. */
+async function fetchPulls(project: ProjectConfig): Promise<PullRequest[]> {
+  const tracked = project.repos
+  if (tracked.length === 0) return []
+
+  const fragments = tracked
+    .map(
+      (r, i) => `
+    r${i}: repository(owner: "${project.org}", name: "${r.name}") {
+      name
+      pullRequests(states: OPEN, first: 50, orderBy: {field: CREATED_AT, direction: DESC}) {
+        nodes {
+          number title isDraft createdAt url baseRefName
+          author { login }
+          mergeable
+          reviewDecision
+          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        }
+      }
+    }`,
+    )
+    .join('\n')
+
+  let data: Record<string, any>
+  try {
+    data = await gh().graphql(`query { ${fragments} }`)
+  } catch (err: any) {
+    // Partial GraphQL errors still carry data — use whatever resolved.
+    if (!err?.data) throw err
+    data = err.data
+  }
+
+  const out: PullRequest[] = []
+  for (const key of Object.keys(data ?? {})) {
+    const node = data[key]
+    if (!node) continue
+    for (const pr of node.pullRequests?.nodes ?? []) {
+      if (!pr) continue
+      const checks = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? null
+      out.push({
+        repo: node.name,
+        number: pr.number,
+        title: pr.title,
+        author: pr.author?.login ?? 'ghost',
+        baseRef: pr.baseRefName,
+        url: pr.url,
+        createdAt: pr.createdAt,
+        ageDays: Math.floor((Date.now() - Date.parse(pr.createdAt)) / 86_400_000),
+        status: prStatus(pr.isDraft, pr.reviewDecision, pr.mergeable, checks),
+      })
+    }
+  }
+  return out
+}
+
+/** Collapse three GitHub fields into one verdict. See PLAN.md §3.4. */
+function prStatus(
+  isDraft: boolean,
+  review: string | null,
+  mergeable: string | null,
+  checks: string | null,
+): PrStatus {
+  if (isDraft) return 'DRAFT'
+  if (mergeable === 'CONFLICTING') return 'CONFLICTS'
+  if (review === 'CHANGES_REQUESTED') return 'BLOCKED'
+  if (checks === 'FAILURE' || checks === 'ERROR') return 'CI FAILED'
+  if (checks === 'PENDING' || checks === 'EXPECTED') return 'WAITING CI'
+  if (review === 'APPROVED') return 'READY'
+  return 'NEEDS REVIEW'
+}
+
+const STATUS_RANK: Record<PrStatus, number> = {
+  READY: 0,
+  'NEEDS REVIEW': 1,
+  'WAITING CI': 2,
+  'CI FAILED': 3,
+  CONFLICTS: 4,
+  BLOCKED: 5,
+  DRAFT: 6,
+}
+
+/**
+ * Cached entry point. The ~37 GitHub calls are what cost; the render is cheap.
+ * Caching here rather than with a page-level `revalidate` keeps the page
+ * dynamic, so `notFound()` still returns a real 404 and per-request clocks
+ * (elapsed timers) stay live.
+ */
+export function getCachedProjectData(project: ProjectConfig): Promise<ProjectData> {
+  return unstable_cache(() => getProjectData(project), ['project-data', project.key], {
+    revalidate: 60,
+    tags: [projectTag(project.key)],
+  })()
+}
+
+export function projectTag(key: string): string {
+  return `project:${key}`
+}
+
+export async function getProjectData(project: ProjectConfig): Promise<ProjectData> {
+  const warnings: string[] = []
+
+  const runsPerRepo = await settle(
+    project.repos.map((r) => fetchRuns(project.org, r.name)),
+  )
+
+  const rows = await Promise.all(
+    project.repos.map((repo, i) => buildRow(project, repo, runsPerRepo[i] ?? [])),
+  )
+
+  const promotions = await buildPromotions(project, rows)
+
+  const active = project.repos
+    .flatMap((repo, i) => activeRuns(repo.name, runsPerRepo[i] ?? []))
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+
+  let pulls: PullRequest[] = []
+  try {
+    pulls = await fetchPulls(project)
+  } catch (err) {
+    warnings.push(`Could not load pull requests: ${describe(err, 'pull requests')}`)
+  }
+
+  pulls.sort(
+    (a, b) =>
+      STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.ageDays - a.ageDays,
+  )
+
+  for (const row of rows) {
+    if (row.error) warnings.push(`${row.name}: ${row.error}`)
+    for (const cell of row.cells) {
+      if (cell.error) warnings.push(`${row.name} → ${cell.env}: ${cell.error}`)
+    }
+  }
+
+  return {
+    project,
+    rows,
+    promotions,
+    active,
+    pulls,
+    fetchedAt: new Date().toISOString(),
+    warnings,
+  }
+}

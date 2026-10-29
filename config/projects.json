@@ -1,0 +1,74 @@
+{
+  "projects": [
+    {
+      "key": "alpha",
+      "name": "Project Alpha",
+      "org": "copods",
+      "environments": ["dev", "staging", "prod"],
+      "repos": [
+        {
+          "name": "web-admin",
+          "kind": "frontend",
+          "trunk": "main",
+          "branches": { "develop": "dev", "main": "prod" }
+        },
+        {
+          "name": "web-portal",
+          "kind": "frontend",
+          "trunk": "main",
+          "branches": { "develop": "dev", "main": "prod" }
+        },
+        {
+          "name": "api-core",
+          "kind": "service",
+          "trunk": "main",
+          "branches": { "develop": "dev", "release/*": "staging", "main": "prod" }
+        },
+        {
+          "name": "ml-service",
+          "kind": "service",
+          "trunk": "main",
+          "branches": { "main": "prod" }
+        },
+        {
+          "name": "auth-service",
+          "kind": "service",
+          "trunk": "main",
+          "branches": { "develop": "dev", "main": "prod" }
+        },
+        {
+          "name": "shared-lib",
+          "kind": "library",
+          "trunk": "main",
+          "branches": {}
+        }
+      ]
+    },
+    {
+      "key": "beta",
+      "name": "Project Beta",
+      "org": "copods",
+      "environments": ["staging", "prod"],
+      "repos": [
+        {
+          "name": "beta-web",
+          "kind": "frontend",
+          "trunk": "main",
+          "branches": { "develop": "staging", "main": "prod" }
+        },
+        {
+          "name": "beta-api",
+          "kind": "service",
+          "trunk": "main",
+          "branches": { "develop": "staging", "main": "prod" }
+        },
+        {
+          "name": "beta-qa",
+          "kind": "tooling",
+          "trunk": "main",
+          "branches": {}
+        }
+      ]
+    }
+  ]
+}
