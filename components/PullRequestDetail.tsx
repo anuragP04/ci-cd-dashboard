@@ -323,18 +323,25 @@ function CopyLink({ number }: { number: number }) {
   )
 }
 
+const ALL = '__all__'
+const OTHER = '__other__'
+
 export default function PullRequestDetail({
   open = [],
   closed = [],
   projectKey,
   repoName,
+  branches = [],
 }: {
   open?: PullRequest[]
   closed?: PullRequest[]
   projectKey: string
   repoName: string
+  /** The repo's configured branches, in flow order. */
+  branches?: string[]
 }) {
   const [tab, setTab] = useState<'open' | 'closed'>('open')
+  const [base, setBase] = useState<string>(ALL)
   // One expanded PR at a time, across both tabs.
   const [expanded, setExpanded] = useState<number | null>(null)
   // One counter per tab so switching back does not collapse what you expanded.
@@ -363,7 +370,24 @@ export default function PullRequestDetail({
     return () => window.removeEventListener('hashchange', fromHash)
   }, [open, closed])
 
-  const list = tab === 'open' ? open : closed
+  const source = tab === 'open' ? open : closed
+
+  // Counts come from the unfiltered list so the chips stay meaningful while a
+  // filter is applied.
+  const countFor = (b: string) =>
+    b === ALL
+      ? source.length
+      : b === OTHER
+        ? source.filter((p) => !branches.includes(p.baseRef)).length
+        : source.filter((p) => p.baseRef === b).length
+
+  const list =
+    base === ALL
+      ? source
+      : base === OTHER
+        ? source.filter((p) => !branches.includes(p.baseRef))
+        : source.filter((p) => p.baseRef === base)
+
   const visible = shown[tab]
   const remaining = list.length - visible
 
@@ -374,13 +398,19 @@ export default function PullRequestDetail({
         <div className="subtabs">
           <button
             className={`subtab${tab === 'open' ? ' on' : ''}`}
-            onClick={() => setTab('open')}
+            onClick={() => {
+              setTab('open')
+              setShown((s) => ({ ...s, open: PAGE }))
+            }}
           >
             Open <span className="num">{open.length}</span>
           </button>
           <button
             className={`subtab${tab === 'closed' ? ' on' : ''}`}
-            onClick={() => setTab('closed')}
+            onClick={() => {
+              setTab('closed')
+              setShown((s) => ({ ...s, closed: PAGE }))
+            }}
           >
             Closed <span className="num">{closed.length}</span>
           </button>
@@ -391,8 +421,41 @@ export default function PullRequestDetail({
         </span>
       </div>
 
+      {branches.length > 0 && (
+        <div className="prfilter">
+          <span className="prfilter-label">Base</span>
+          {[ALL, ...branches, OTHER].map((b) => {
+            const n = countFor(b)
+            if ((b === OTHER || !branches.includes(b)) && b !== ALL && n === 0) return null
+            return (
+              <button
+                key={b}
+                className={`chip-filter${base === b ? ' on' : ''}`}
+                onClick={() => {
+                  setBase(b)
+                  setShown((s) => ({ ...s, [tab]: PAGE }))
+                }}
+                data-tip={
+                  b === ALL
+                    ? 'Every pull request in this tab'
+                    : b === OTHER
+                      ? 'Pull requests targeting a branch not in this repo\u2019s config'
+                      : `Pull requests targeting "${b}"`
+                }
+              >
+                {b === ALL ? 'All' : b === OTHER ? 'Other' : b}
+                <span className="num">{n}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {list.length === 0 ? (
-        <div className="idle">No {tab} pull requests.</div>
+        <div className="idle">
+          No {tab} pull requests
+          {base !== ALL && ` targeting ${base === OTHER ? 'other branches' : `"${base}"`}`}.
+        </div>
       ) : (
         <>
           {list.slice(0, visible).map((p) => (

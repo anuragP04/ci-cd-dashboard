@@ -59,6 +59,13 @@ export default async function RepoPage({
         closed={d.closedPulls}
         projectKey={key}
         repoName={d.repo.name}
+        branches={[
+          ...new Set(
+            [d.trunk, ...d.cells.map((c) => c.branch)].filter(
+              (b): b is string => typeof b === 'string',
+            ),
+          ),
+        ]}
       />
 
       {/* ---- pipeline ---- */}
