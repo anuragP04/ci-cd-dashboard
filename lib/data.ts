@@ -132,6 +132,34 @@ async function resolveRef(
   return null
 }
 
+/**
+ * Explain a failed branch resolution by saying what the repo actually has.
+ *
+ * Without this, a wrong org name reports as "no trunk branch matching dev" on
+ * every repo — pointing at the branch config when the real fault is one line
+ * above it.
+ */
+async function explainMissing(
+  org: string,
+  repo: string,
+  patterns: string[],
+): Promise<string> {
+  const wanted = patterns.map((p) => `"${p}"`).join(' or ')
+  try {
+    const res = await gh().rest.repos.listBranches({ owner: org, repo, per_page: 100 })
+    const names = res.data.map((b) => b.name)
+    const likely = names.filter((n) => !n.includes('/'))
+    const shown = (likely.length ? likely : names).slice(0, 8).join(', ')
+    const more = Math.max(0, (likely.length || names.length) - 8)
+    return `no branch matching ${wanted} — repo has: ${shown}${more ? ` (+${more} more)` : ''}`
+  } catch (err: any) {
+    if (err?.status === 404) {
+      return `repository ${org}/${repo} not found — check the org name and token access`
+    }
+    return `no branch matching ${wanted} (${describe(err, 'branches')})`
+  }
+}
+
 async function buildCell(
   org: string,
   repo: RepoConfig,
@@ -158,7 +186,7 @@ async function buildCell(
     if (!ref) {
       // Loud failure: an unresolvable branch would otherwise read as "ahead 0",
       // which looks healthy. See PLAN.md G6.
-      return { ...base, error: `no branch matching ${patterns.map((p) => `"${p}"`).join(' or ')}` }
+      return { ...base, error: await explainMissing(org, repo.name, patterns) }
     }
     branch = ref.branch
     sha = ref.sha
@@ -211,7 +239,7 @@ async function buildRow(
         kind: repo.kind,
         trunk: trunkName,
         cells: [],
-        error: `no trunk branch matching ${trunkCandidates.map((t) => `"${t}"`).join(' or ')}`,
+        error: 'trunk: ' + (await explainMissing(project.org, repo.name, trunkCandidates)),
       }
     }
     trunkName = ref.branch

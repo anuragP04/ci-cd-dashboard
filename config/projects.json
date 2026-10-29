@@ -3,7 +3,7 @@
     {
       "key": "fma",
       "name": "FMA",
-      "org": "REPLACE_WITH_YOUR_GITHUB_ORG",
+      "org": "elbe-ai",
       "environments": [
         "dev",
         "staging",
@@ -15,11 +15,11 @@
           "kind": "frontend",
           "trunk": [
             "dev-draft",
-            "dev"
+            "develop"
           ],
           "branches": {
             "dev-draft": "dev",
-            "dev": "dev",
+            "develop": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -28,12 +28,10 @@
           "name": "FMA-Add-in",
           "kind": "frontend",
           "trunk": [
-            "dev-draft",
-            "dev"
+            "develop"
           ],
           "branches": {
-            "dev-draft": "dev",
-            "dev": "dev",
+            "develop": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -42,12 +40,10 @@
           "name": "FMA-Node-Service",
           "kind": "service",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "develop"
           ],
           "branches": {
-            "dev": "dev",
-            "dev-draft": "dev",
+            "develop": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -56,12 +52,10 @@
           "name": "FMA-Py-Service",
           "kind": "service",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "develop"
           ],
           "branches": {
-            "dev": "dev",
-            "dev-draft": "dev",
+            "develop": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -70,12 +64,10 @@
           "name": "FMA-Auth-Service",
           "kind": "service",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "dev"
           ],
           "branches": {
             "dev": "dev",
-            "dev-draft": "dev",
             "staging": "staging",
             "main": "prod"
           }
@@ -84,13 +76,9 @@
           "name": "FMA-Dashboard-Prototype",
           "kind": "frontend",
           "trunk": [
-            "dev-draft",
-            "dev"
+            "main"
           ],
           "branches": {
-            "dev-draft": "dev",
-            "dev": "dev",
-            "staging": "staging",
             "main": "prod"
           }
         },
@@ -98,13 +86,9 @@
           "name": "FMA-Terraform",
           "kind": "tooling",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "main"
           ],
           "branches": {
-            "dev": "dev",
-            "dev-draft": "dev",
-            "staging": "staging",
             "main": "prod"
           }
         },
@@ -112,13 +96,9 @@
           "name": "FMA-QA-Automation",
           "kind": "tooling",
           "trunk": [
-            "dev",
-            "dev-draft"
+            "main"
           ],
           "branches": {
-            "dev": "dev",
-            "dev-draft": "dev",
-            "staging": "staging",
             "main": "prod"
           }
         }
@@ -127,7 +107,7 @@
     {
       "key": "beta",
       "name": "Project 2 (awaiting repo names)",
-      "org": "REPLACE_WITH_YOUR_GITHUB_ORG",
+      "org": "elbe-ai",
       "environments": [
         "dev",
         "staging",
