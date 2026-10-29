@@ -91,6 +91,7 @@
       "environments": [
         "dev",
         "staging",
+        "uat",
         "prod"
       ],
       "repos": [
@@ -103,6 +104,7 @@
           "branches": {
             "testing": "dev",
             "staging": "staging",
+            "uat": "uat",
             "main": "prod"
           }
         },
